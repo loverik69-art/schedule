@@ -239,7 +239,11 @@ input:checked+.toggle-slider:before{transform:translateX(20px)}
 <div id="login-overlay" class="modal-bg hidden" style="z-index:200; background:linear-gradient(135deg, var(--gd), var(--g))">
   <div class="card" style="width:100%; max-width:320px; padding:30px 20px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2); border-radius:20px; margin:auto">
     <div style="font-size:40px; margin-bottom:15px; cursor:pointer; user-select:none" onclick="triggerDevLogin()">🔐</div>
-    <h2 style="margin-bottom:20px; color:var(--tx)">Admin Login</h2>
+    <h2 style="margin-bottom:4px; color:var(--tx)">Admin Login</h2>
+    <div id="first-setup-hint" style="display:none; background:var(--orl); border:1px solid var(--or); border-radius:8px; padding:8px 10px; margin-bottom:14px; font-size:11px; color:var(--or); font-weight:600">
+      🆕 First Setup: use <b>admin / admin</b><br>Change password after login!
+    </div>
+    <div style="margin-bottom:16px"></div>
     <div class="fg" style="text-align:left">
       <label class="fl">Username</label>
       <input type="text" id="l-user" placeholder="Enter username" onkeyup="if(event.key==='Enter')doLogin()">
@@ -253,6 +257,15 @@ input:checked+.toggle-slider:before{transform:translateX(20px)}
     <div id="l-err" style="color:var(--rd); font-size:12px; margin-top:10px; min-height:18px"></div>
   </div>
 </div>
+<script>
+  // Show first-setup hint on login screen if needed
+  (function() {
+    if (localStorage.getItem('ms_first_setup') === '1') {
+      var el = document.getElementById('first-setup-hint');
+      if (el) el.style.display = 'block';
+    }
+  })();
+</script>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -713,7 +726,21 @@ function doLogin() {
   if (u === targetU && p === targetP) {
     S.isLoggedIn = true;
     sv('ms_logged_in', true);
-    render();
+    const isFirstSetup = localStorage.getItem('ms_first_setup') === '1';
+    if (isFirstSetup) {
+      localStorage.removeItem('ms_first_setup');
+      render();
+      // Redirect to Security settings and prompt password change
+      setTimeout(() => {
+        S.tab = 'settings';
+        S.settingsTab = 'settings_app';
+        document.querySelectorAll('.nb').forEach(b => b.classList.toggle('active', b.dataset.tab === 'settings'));
+        render();
+        alert('👋 Welcome! You are using default credentials.\n\nPlease set your own Username & Password now in the Security section below.');
+      }, 100);
+    } else {
+      render();
+    }
   } else {
     document.getElementById('l-err').textContent = '❌ Invalid username or password';
   }
@@ -1074,10 +1101,17 @@ function renderMsgs() {
       <div class="card-body">
         <div class="fg"><label class="fl">Number of Groups</label>
           <select onchange="S.groupCount=parseInt(this.value);render()">
-            <option value="1" ${S.groupCount===1?'selected':''}>1 Group (All)</option>
-            <option value="3" ${S.groupCount===3?'selected':''}>3 Groups</option>
-            <option value="4" ${S.groupCount===4?'selected':''}>4 Groups</option>
-            <option value="5" ${S.groupCount===5?'selected':''}>5 Groups</option>
+            ${(()=>{
+              const gn = getGroupNames();
+              const maxG = gn.length;
+              if (maxG === 0) return '<option value="1">No groups set — add groups in Settings</option>';
+              return Array.from({length: maxG}, (_,i) => {
+                const n = i+1;
+                const lbl = n === 1 ? '1 Group (All)' : `${n} Groups`;
+                const sel = S.groupCount === n ? 'selected' : '';
+                return `<option value="${n}" ${sel}>${lbl}</option>`;
+              }).join('');
+            })()}
           </select>
         </div>
         ${groups.map((g,i)=>{
@@ -1410,7 +1444,7 @@ function renderSessions() {
                 <label class="fl" style="font-size:11px">Group ${i+1} Name</label>
                 <input type="text" class="gn-input" data-idx="${i}" value="${name}" placeholder="Group Name">
               </div>
-              ${getGroupNames().length > 1 ? `<button class="del" onclick="removeGroupName(${i})" style="margin-bottom:2px">×</button>` : ''}
+              <button class="del" onclick="removeGroupName(${i})" style="margin-bottom:2px">×</button>
             </div>
           `).join('')}
         </div>
@@ -2163,12 +2197,32 @@ function resetAllData() {
     alert('Please type DELETE ALL in the box to confirm.');
     return;
   }
-  if (!confirm('🚨 CRITICAL WARNING: This will erase EVERYTHING (Schools, Teachers, Schedule). This cannot be undone.\n\nContinue?')) return;
+  if (!confirm('🚨 CRITICAL WARNING: This will erase EVERYTHING (Schools, Teachers, Assignments, Groups, Login). This cannot be undone.\n\nContinue?')) return;
   
-  const keys = ['ms_schools','ms_t','ms_a','ms_abs','ms_hols','ms_company','ms_group_names','ms_backups'];
-  keys.forEach(k => localStorage.removeItem(k));
-  
-  alert('💥 All data has been cleared. The app will now reload.');
+  // Save empty arrays so default data does NOT repopulate
+  sv('ms_schools', []);
+  sv('ms_t', []);
+  sv('ms_a', []);
+  sv('ms_abs', []);
+  sv('ms_hols', []);
+
+  // Clear ALL other ms_ keys (including login credentials, sessions, UI states)
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('ms_') && k !== 'ms_schools' && k !== 'ms_t' && k !== 'ms_a' && k !== 'ms_abs' && k !== 'ms_hols') {
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+
+  // Force empty groups so default ['Group 1'...] does NOT repopulate
+  sv('ms_group_names', []);
+
+  // Mark as fresh setup so login screen shows setup hint
+  localStorage.setItem('ms_first_setup', '1');
+
+  alert('💥 All data cleared.\n\nLogin with default credentials:\n👤 Username: admin\n🔑 Password: admin\n\nPlease change your password after logging in.');
   location.reload();
 }
 
