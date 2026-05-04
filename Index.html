@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1a6e42">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="My Schedule">
+<title>My Schedule</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --g:#1a6e42;--gd:#124d2e;--gl:#e6f4ec;--gm:#2d9460;
+  --or:#d4730a;--orl:#fff3e5;
+  --bl:#2563a8;--bll:#e8f0fb;
+  --rd:#b91c1c;--rdl:#fce8e8;
+  --tx:#1c1c1e;--tx2:#6b7280;--tx3:#9ca3af;
+  --bd:#e5e7eb;--bg:#f0f2f1;--card:#ffffff;
+  --nav:78px;--hdr:65px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative}
+
+.hdr{background:linear-gradient(135deg,var(--gd),var(--g));color:#fff;height:var(--hdr);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;box-shadow:0 2px 12px rgba(26,110,66,.3)}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-icon{width:32px;height:32px;background:rgba(255,255,255,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hdr h1{font-size:18px;font-weight:700;letter-spacing:.3px}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.hdr-date{font-size:11px;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:20px;font-weight:500}
+.btn-logout{background:rgba(255,255,255,0.2);border:none;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:0.2s}
+.btn-logout:active{transform:scale(0.9);background:rgba(255,255,255,0.4)}
+
+.content{flex:1;overflow-y:auto;padding:12px 12px 0;-webkit-overflow-scrolling:touch}
+.content-inner{padding-bottom:100px}
+
+.nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav);background:#fff;border-top:1px solid var(--bd);display:flex;padding-bottom:18px;z-index:50;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;color:var(--tx3);font-size:10px;font-weight:500;cursor:pointer;transition:color .15s;position:relative}
+.nb.active{color:var(--g)}
+.nb.active::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:28px;height:3px;background:var(--g);border-radius:3px 3px 0 0}
+.nb svg{width:22px;height:22px;stroke-width:1.8}
+
+.card{background:var(--card);border-radius:12px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04)}
+.card-hdr{padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--tx2)}
+.card-body{padding:0 14px 12px}
+
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.kpi{background:var(--card);border-radius:12px;padding:14px 12px;box-shadow:0 2px 6px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.04);text-align:center;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.kpi:active{transform:scale(.96);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.kpi::after{content:'';position:absolute;inset:0;background:#000;opacity:0;transition:.2s}
+.kpi:active::after{opacity:.04}
+.kpi.on{box-shadow:0 0 0 2px var(--g),0 4px 12px rgba(26,110,66,.15);transform:translateY(-2px)}
+.kpi.on.warn{box-shadow:0 0 0 2px var(--or),0 4px 12px rgba(212,115,10,.15)}
+.kpi.on.danger{box-shadow:0 0 0 2px var(--rd),0 4px 12px rgba(185,28,28,.15)}
+.kpi.on.info{box-shadow:0 0 0 2px var(--bl),0 4px 12px rgba(37,99,168,.15)}
+.kpi-v{font-size:28px;font-weight:800;line-height:1;color:var(--g)}
+.kpi-l{font-size:10px;color:var(--tx2);margin-top:3px;font-weight:500}
+.kpi.warn .kpi-v{color:var(--or)}
+.kpi.danger .kpi-v{color:var(--rd)}
+.kpi.info .kpi-v{color:var(--bl)}
+
+.li{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #f3f4f6;gap:10px;transition:background-color .2s}
+.li:last-child{border-bottom:none}
+.li[onclick]:active{background-color:var(--bll)}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dot-N{background:var(--g)}.dot-R{background:var(--or)}.dot-H{background:var(--bl)}.dot-U{background:var(--rd)}
+.li-info{flex:1;min-width:0}
+.li-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:11px;color:var(--tx2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0}
+.badge-N{background:var(--gl);color:var(--g)}.badge-R{background:var(--orl);color:var(--or)}
+.badge-H{background:var(--bll);color:var(--bl)}.badge-U{background:var(--rdl);color:var(--rd)}
+
+.dr{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.dr input[type=date]{flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:var(--card);color:var(--tx);-webkit-appearance:none}
+.dr input[type=date]:focus{outline:none;border-color:var(--g)}
+.btn-today{padding:10px 14px;background:var(--g);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+.fg{margin-bottom:12px}
+.fl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx2);margin-bottom:5px}
+select,input[type=text]{width:100%;padding:11px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:var(--card);color:var(--tx);-webkit-appearance:none;appearance:none}
+select:focus,input:focus{outline:none;border-color:var(--g)}
+.date-range{display:flex;gap:6px;align-items:center}
+.date-range input[type=date]{flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:13px;background:var(--card);color:var(--tx);-webkit-appearance:none}
+.date-range input[type=date]:focus{outline:none;border-color:var(--g)}
+.date-range span{font-size:12px;color:var(--tx2);flex-shrink:0;font-weight:600}
+
+.btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn:active{opacity:.85}
+.btn-p{background:var(--g);color:#fff}
+.btn-d{background:var(--rd);color:#fff}
+.btn-s{background:var(--gl);color:var(--g)}
+.btn-b{background:var(--bll);color:var(--bl)}
+.btn-sm{padding:6px 12px;font-size:12px;border:none;border-radius:8px;cursor:pointer;font-weight:600;width:auto}
+
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{padding:6px 14px;border-radius:20px;border:1.5px solid var(--bd);background:var(--card);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.chip.on{background:var(--g);color:#fff;border-color:var(--g)}
+
+.ai{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6}
+.ai:last-child{border-bottom:none}
+.ai-name{font-size:13px;font-weight:600}
+.ai-sub{font-size:11px;color:var(--tx2)}
+.ai-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--orl);color:var(--or)}
+.del{background:none;border:none;color:var(--tx3);font-size:20px;cursor:pointer;padding:2px 8px;line-height:1}
+.edit-btn{background:var(--bll);border:none;color:var(--bl);font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;margin-right:4px}
+
+.hi{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6}
+.hi:last-child{border-bottom:none}
+.hi-date{font-size:11px;font-weight:700;color:var(--bl)}
+.hi-school{font-size:12px;color:var(--tx);margin-top:1px}
+
+.mi{padding:10px 14px;border-bottom:1px solid #f3f4f6}
+.mi:last-child{border-bottom:none}
+.mi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.mi-school{font-size:12px;font-weight:700}
+.mi-teacher{font-size:11px;color:var(--g);font-weight:600;margin-bottom:4px}
+.mi-txt{font-size:11px;color:var(--tx2);line-height:1.5;margin-bottom:6px}
+.wa{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#25D366;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none}
+.wa-group{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:#25D366;color:#fff;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:12px;box-shadow:0 4px 12px rgba(37,211,102,.3)}
+
+.set-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f3f4f6;cursor:pointer}
+.set-item:last-child{border-bottom:none}
+.set-lbl{font-size:14px;font-weight:500}
+.set-sub{font-size:11px;color:var(--tx2);margin-top:1px}
+.set-arr{color:var(--tx3);font-size:18px}
+
+.empty{text-align:center;padding:28px 16px;color:var(--tx2)}
+.empty-ico{font-size:36px;margin-bottom:8px}
+.empty-txt{font-size:13px}
+
+.sec{font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px;padding:0 2px}
+
+.alert{background:var(--orl);border-left:4px solid var(--or);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.alert-ttl{font-size:11px;font-weight:700;color:var(--or);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.alert-txt{font-size:12px;color:var(--tx)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--tx2);line-height:1;padding:0}
+.hidden{display:none!important}
+
+.cov-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-top:4px}
+.cov-fill{height:100%;background:linear-gradient(90deg,var(--g),var(--gm));border-radius:4px;transition:width .4s ease}
+
+.asn-item{padding:8px 14px;border-bottom:1px solid #f3f4f6;font-size:12px}
+.asn-item:last-child{border-bottom:none}
+.asn-school{font-weight:600;margin-bottom:1px}
+.asn-teachers{color:var(--tx2);display:flex;align-items:center;justify-content:space-between}
+
+.ver{font-size:10px;color:var(--tx3);text-align:center;padding:8px}
+
+.import-area{border:2px dashed var(--bd);border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .2s}
+.import-area:hover{border-color:var(--g)}
+.import-area input{display:none}
+.import-ico{font-size:28px;margin-bottom:6px}
+.import-txt{font-size:12px;color:var(--tx2)}
+.import-hint{font-size:10px;color:var(--tx3);margin-top:4px}
+
+.bkp-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6}
+.bkp-item:last-child{border-bottom:none}
+.bkp-name{font-size:13px;font-weight:600}
+.bkp-date{font-size:11px;color:var(--tx2)}
+
+.tab-btns{display:flex;gap:0;border-bottom:2px solid var(--bd);margin-bottom:12px}
+.tab-btn{flex:1;padding:10px;background:none;border:none;font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab-btn.on{color:var(--g);border-bottom-color:var(--g)}
+
+.priority-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#f3f4f6;color:var(--tx2)}
+.priority-High{background:#fef3c7;color:#d97706}
+.priority-Medium{background:#e0f2fe;color:#0369a1}
+.priority-Low{background:var(--gl);color:var(--g)}
+
+.search-box{width:100%;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;margin-bottom:10px;background:var(--card)}
+.search-box:focus{outline:none;border-color:var(--g)}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6}
+.toggle-lbl{font-size:13px;font-weight:500}
+.toggle{position:relative;width:44px;height:24px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:24px;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.toggle-slider{background:var(--g)}
+input:checked+.toggle-slider:before{transform:translateX(20px)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-icon">📅</div>
+      <div>
+        <h1 id="com-name">My Schedule</h1>
+        <div id="com-addr" style="font-size:10px;opacity:0.8;margin-top:-2px"></div>
+      </div>
+    </div>
+    <div class="hdr-date" id="hdr-date"></div>
+  </div>
+  <div class="content" id="content"><div class="content-inner" id="ci"></div></div>
+  <nav class="nav">
+    <button class="nb active" data-tab="dashboard" onclick="goTab('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nb" data-tab="status" onclick="goTab('status')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+      Leave
+    </button>
+    <button class="nb" data-tab="holidays" onclick="goTab('holidays')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Holidays
+    </button>
+    <button class="nb" data-tab="messages" onclick="goTab('messages')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Messages
+    </button>
+    <button class="nb" data-tab="archive" onclick="goTab('archive')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 8V21H3V8M1 3H23V8H1V3ZM10 12H14"/></svg>
+      Archive
+    </button>
+    <button class="nb" data-tab="settings" onclick="goTab('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-bg" class="modal-bg hidden" onclick="closeModal(event)">
+  <div class="modal" id="modal-body" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" class="modal-bg hidden" style="z-index:200; background:linear-gradient(135deg, var(--gd), var(--g))">
+  <div class="card" style="width:100%; max-width:320px; padding:30px 20px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2); border-radius:20px; margin:auto">
+    <div style="font-size:40px; margin-bottom:15px; cursor:pointer; user-select:none" onclick="triggerDevLogin()">🔐</div>
+    <h2 style="margin-bottom:20px; color:var(--tx)">Admin Login</h2>
+    <div class="fg" style="text-align:left">
+      <label class="fl">Username</label>
+      <input type="text" id="l-user" placeholder="Enter username" onkeyup="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="fg" style="text-align:left; position:relative">
+      <label class="fl">Password</label>
+      <input type="password" id="l-pass" placeholder="Enter password" style="width:100%; padding:11px 40px 11px 12px; border:1.5px solid var(--bd); border-radius:10px" onkeyup="if(event.key==='Enter')doLogin()">
+      <span onclick="togglePass('l-pass')" style="position:absolute; right:12px; bottom:11px; cursor:pointer; font-size:18px; user-select:none">👁️</span>
+    </div>
+    <button class="btn btn-p" onclick="doLogin()" style="margin-top:10px">Login to App</button>
+    <div id="l-err" style="color:var(--rd); font-size:12px; margin-top:10px; min-height:18px"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DEFAULT DATA
+// ═══════════════════════════════════════════════════════════
+const SCHOOLS_DEF = [
+  {id:'S001',name:'Asian Academy',sunHol:true,priority:'High'},
+  {id:'S002',name:'Bal Kalyan English School',sunHol:true,priority:'Medium'},
+  {id:'S003',name:'Blooming Buds School',sunHol:true,priority:'Low'},
+  {id:'S004',name:'Blue Sky School',sunHol:true,priority:'High'},
+  {id:'S005',name:'Bright Future School',sunHol:true,priority:'Medium'},
+  {id:'S006',name:'Bright Star School',sunHol:true,priority:'Low'},
+  {id:'S007',name:'Capital Secondary School',sunHol:true,priority:'High'},
+  {id:'S008',name:"Children's World School",sunHol:true,priority:'Medium'},
+  {id:'S009',name:'Diamond Academy',sunHol:true,priority:'Low'},
+  {id:'S010',name:'Education Hub School',sunHol:true,priority:'High'},
+  {id:'S011',name:'Everest Academy',sunHol:false,priority:'Medium'},
+  {id:'S012',name:'Evergreen School',sunHol:true,priority:'Low'},
+  {id:'S013',name:'Future Star School',sunHol:true,priority:'High'},
+  {id:'S014',name:'Galaxy Public School',sunHol:true,priority:'Medium'},
+  {id:'S015',name:'Global College School',sunHol:false,priority:'Low'},
+  {id:'S016',name:'Golden Future School',sunHol:true,priority:'High'},
+  {id:'S017',name:'Golden Gate School',sunHol:true,priority:'Medium'},
+  {id:'S018',name:'Green Valley School',sunHol:false,priority:'High'},
+  {id:'S019',name:'Heritage School',sunHol:true,priority:'Medium'},
+  {id:'S020',name:'Himalayan Public School',sunHol:true,priority:'Low'},
+  {id:'S021',name:'Holy Vision School',sunHol:false,priority:'High'},
+  {id:'S022',name:'Horizon Academy',sunHol:true,priority:'Medium'},
+  {id:'S023',name:'Ideal Model School',sunHol:true,priority:'Low'},
+  {id:'S024',name:'Kathmandu Model School',sunHol:false,priority:'High'},
+  {id:'S025',name:'Knowledge Park School',sunHol:true,priority:'Medium'},
+  {id:'S026',name:'Learning Tree School',sunHol:true,priority:'Low'},
+  {id:'S027',name:'Little Flower Boarding School',sunHol:false,priority:'High'},
+  {id:'S028',name:'Lotus Academy',sunHol:true,priority:'Medium'},
+  {id:'S029',name:'Modern Public School',sunHol:true,priority:'Low'},
+  {id:'S030',name:'Mount View English School',sunHol:false,priority:'High'},
+  {id:'S031',name:'Nepal National School',sunHol:true,priority:'Medium'},
+  {id:'S032',name:'New Horizon School',sunHol:true,priority:'Low'},
+  {id:'S033',name:'Oxford Academy',sunHol:false,priority:'High'},
+  {id:'S034',name:'Paradise School',sunHol:true,priority:'Medium'},
+  {id:'S035',name:'Peace Zone School',sunHol:true,priority:'Low'},
+  {id:'S036',name:'Pinnacle Academy',sunHol:false,priority:'High'},
+  {id:'S037',name:'Premier International School',sunHol:true,priority:'Medium'},
+  {id:'S038',name:'Radiant School',sunHol:true,priority:'Low'},
+  {id:'S039',name:"Saint Mary's School",sunHol:false,priority:'High'},
+  {id:'S040',name:'Scholars Home School',sunHol:true,priority:'Medium'},
+  {id:'S041',name:'Shining Star School',sunHol:true,priority:'Low'},
+  {id:'S042',name:'Shree Saraswati Secondary School',sunHol:false,priority:'High'},
+  {id:'S043',name:'Springfield School',sunHol:true,priority:'Medium'},
+  {id:'S044',name:'Sunbeam School',sunHol:true,priority:'Low'},
+  {id:'S045',name:'Sunrise Secondary School',sunHol:false,priority:'High'},
+  {id:'S046',name:'Unique English School',sunHol:true,priority:'Medium'},
+  {id:'S047',name:'Unity School',sunHol:true,priority:'Low'},
+  {id:'S048',name:'Universal Academy',sunHol:false,priority:'High'},
+  {id:'S049',name:'Valley View School',sunHol:true,priority:'Medium'},
+  {id:'S050',name:'Wisdom Academy',sunHol:true,priority:'Low'},
+];
+
+const T_DEF = [
+  {id:'T001',name:'Aarav Sharma',mobile:'9841000001'},
+  {id:'T002',name:'Alisha Tamang',mobile:'9841000002'},
+  {id:'T003',name:'Anjali KC',mobile:'9841000003'},
+  {id:'T004',name:'Asha Thakuri',mobile:'9841000004'},
+  {id:'T005',name:'Bikash Thapa',mobile:'9841000005'},
+  {id:'T006',name:'Binod Giri',mobile:'9841000006'},
+  {id:'T007',name:'Deepak Bhandari',mobile:'9841000007'},
+  {id:'T008',name:'Dinesh Oli',mobile:'9841000008'},
+  {id:'T009',name:'Gopal Khadka',mobile:'9841000009'},
+  {id:'T010',name:'Hari Prasad',mobile:'9841000010'},
+  {id:'T011',name:'Jyoti Adhikari',mobile:'9841000011'},
+  {id:'T012',name:'Kavita Rana',mobile:'9841000012'},
+  {id:'T013',name:'Kiran Acharya',mobile:'9841000013'},
+  {id:'T014',name:'Laxmi Kharel',mobile:'9841000014'},
+  {id:'T015',name:'Manisha Joshi',mobile:'9841000015'},
+  {id:'T016',name:'Mohan Khatri',mobile:'9841000016'},
+  {id:'T017',name:'Neha Shahi',mobile:'9841000017'},
+  {id:'T018',name:'Niraj Subedi',mobile:'9841000018'},
+  {id:'T019',name:'Nisha Gurung',mobile:'9841000019'},
+  {id:'T020',name:'Pabitra Neupane',mobile:'9841000020'},
+  {id:'T021',name:'Pooja Karki',mobile:'9841000021'},
+  {id:'T022',name:'Prakash Dahal',mobile:'9841000022'},
+  {id:'T023',name:'Rajesh KC',mobile:'9841000023'},
+  {id:'T024',name:'Ramesh Adhikari',mobile:'9841000024'},
+  {id:'T025',name:'Rekha Bhattarai',mobile:'9841000025'},
+  {id:'T026',name:'Ritu Lama',mobile:'9841000026'},
+  {id:'T027',name:'Roshan Magar',mobile:'9841000027'},
+  {id:'T028',name:'Sarita Basnet',mobile:'9841000028'},
+  {id:'T029',name:'Sita Rai',mobile:'9841000029'},
+  {id:'T030',name:'Sneha Poudel',mobile:'9841000030'},
+  {id:'T031',name:'Suman Koirala',mobile:'9841000031'},
+  {id:'T032',name:'Sunil Shrestha',mobile:'9841000032'},
+  {id:'T033',name:'Suresh Pandey',mobile:'9841000033'},
+  {id:'T034',name:'Tek Bahadur',mobile:'9841000034'},
+  {id:'T035',name:'Tika Bista',mobile:'9841000035'},
+];
+
+const A_DEF = [
+  {s:'S001',p:'T001',b:'T002'},{s:'S002',p:'T002',b:'T003'},{s:'S003',p:'T003',b:'T004'},
+  {s:'S004',p:'T004',b:'T005'},{s:'S005',p:'T005',b:'T006'},{s:'S006',p:'T006',b:'T007'},
+  {s:'S007',p:'T007',b:'T008'},{s:'S008',p:'T008',b:'T016'},{s:'S009',p:'T009',b:'T017'},
+  {s:'S010',p:'T010',b:'T018'},{s:'S011',p:'T011',b:'T012'},{s:'S012',p:'T012',b:'T013'},
+  {s:'S013',p:'T013',b:'T014'},{s:'S014',p:'T014',b:'T015'},{s:'S015',p:'T015',b:'T016'},
+  {s:'S016',p:'T016',b:'T017'},{s:'S017',p:'T017',b:'T018'},{s:'S018',p:'T018',b:'T019'},
+  {s:'S019',p:'T019',b:'T020'},{s:'S020',p:'T020',b:'T021'},{s:'S021',p:'T021',b:'T022'},
+  {s:'S022',p:'T022',b:'T023'},{s:'S023',p:'T023',b:'T024'},{s:'S024',p:'T024',b:'T025'},
+  {s:'S025',p:'T025',b:'T026'},{s:'S026',p:'T026',b:'T027'},{s:'S027',p:'T027',b:'T028'},
+  {s:'S028',p:'T028',b:'T029'},{s:'S029',p:'T029',b:'T030'},{s:'S030',p:'T030',b:'T031'},
+  {s:'S031',p:'T031',b:'T032'},{s:'S032',p:'T032',b:'T033'},{s:'S033',p:'T033',b:'T034'},
+  {s:'S034',p:'T034',b:'T035'},{s:'S035',p:'T035',b:'T001'},{s:'S036',p:'T001',b:'T002'},
+  {s:'S037',p:'T002',b:'T003'},{s:'S038',p:'T003',b:'T004'},{s:'S039',p:'T004',b:'T005'},
+  {s:'S040',p:'T005',b:'T006'},{s:'S041',p:'T006',b:'T007'},{s:'S042',p:'T007',b:'T008'},
+  {s:'S043',p:'T008',b:'T016'},{s:'S044',p:'T009',b:'T017'},{s:'S045',p:'T010',b:'T018'},
+  {s:'S046',p:'T011',b:'T012'},{s:'S047',p:'T012',b:'T013'},{s:'S048',p:'T013',b:'T014'},
+  {s:'S049',p:'T014',b:'T015'},{s:'S050',p:'T015',b:'T001'},
+];
+
+// ═══════════════════════════════════════════════════════════
+// UTILS & STORAGE
+// ═══════════════════════════════════════════════════════════
+const ld = (k,d) => { try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d} };
+const sv = (k,v) => { try{localStorage.setItem(k,JSON.stringify(v))}catch{} };
+
+if (window.location.search.includes('reset=1')) {
+  localStorage.clear();
+  alert('App data cleared. Refreshing...');
+  window.location.href = window.location.pathname;
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getDow(ds) {
+  const [y,m,d] = ds.split('-').map(Number);
+  return new Date(y, m-1, d).getDay();
+}
+function fmtLong(ds) {
+  const [y,m,d] = ds.split('-').map(Number);
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[new Date(y,m-1,d).getDay()]}, ${d} ${months[m-1]} ${y}`;
+}
+function fmtShort(ds) {
+  const [y,m,d] = ds.split('-').map(Number);
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${months[m-1]}`;
+}
+function fmtRange(from, to) {
+  if (!to || from === to) return fmtLong(from);
+  return `${fmtShort(from)} – ${fmtLong(to)}`;
+}
+function inRange(ds, from, to) {
+  if (!to || from === to) return ds === from;
+  return ds >= from && ds <= to;
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const S = {
+  tab:'dashboard',
+  date: todayStr(),
+  filter:'ALL',
+  statusDate: todayStr(),
+  msgDate: todayStr(),
+  msgFilter:'ALL',
+  groupCount: 3,
+  settingsTab:'teachers',
+  searchTeacher:'',
+  searchSchool:'',
+  searchDash:'',
+  leaveTab:'today',
+  searchLeave:'',
+  academicYear: new Date().getFullYear(),
+  archiveMonth: todayStr().substring(0, 7),
+  activeSess: ld('ms_active_sess', 'default'),
+  isLoggedIn: ld('ms_logged_in', false),
+  hideBackupAlert: ld('ms_hide_backup', false),
+  hideDashList: ld('ms_hide_dash_list', false),
+  collapseAbsentAlert: ld('ms_hide_absent', false),
+  hideTodayLeave: ld('ms_hide_today_leave', false),
+  hideAllLeave: ld('ms_hide_all_leave', false),
+  hideHolidayList: ld('ms_hide_holiday_list', false),
+  hideMessageList: ld('ms_hide_msg_list', false),
+  hideTeacherList: ld('ms_hide_teacher_list', false),
+  hideSchoolList: ld('ms_hide_school_list', false),
+  hideAssignList: ld('ms_hide_assign_list', false),
+  hideSessionList: ld('ms_hide_sess_list', false),
+};
+
+let G_COM = null;
+
+const getSessList = () => {
+  try {
+    const list = ld('ms_sess_list', []);
+    if (list.length === 0) {
+      const com = ld('ms_company', { name: 'My Schedule', address: '', ayStart: todayStr(), ayEnd: todayStr() });
+      const first = { id: 'default', label: `Session ${com.ayStart.split('-')[0]}`, ayStart: com.ayStart, ayEnd: com.ayEnd };
+      sv('ms_sess_list', [first]);
+      return [first];
+    }
+    return list;
+  } catch(e) {
+    return [{ id: 'default', label: 'Default Session', ayStart: todayStr(), ayEnd: todayStr() }];
+  }
+};
+
+const curSess = () => {
+  const s = S.activeSess;
+  if (typeof s === 'string' && s) return s;
+  if (s && typeof s === 'object' && s.id) return String(s.id);
+  return 'default';
+};
+const getSchools = () => ld('ms_schools', SCHOOLS_DEF);
+const getT = () => ld('ms_t', T_DEF);
+
+const getA = () => {
+  const sid = curSess();
+  return ld(`ms_${sid}_a`, ld('ms_a', A_DEF));
+};
+const getAbs = () => {
+  const sid = curSess();
+  return ld(`ms_${sid}_abs`, ld('ms_abs', []));
+};
+const getHols = () => {
+  const sid = curSess();
+  return ld(`ms_${sid}_hols`, ld('ms_hols', []));
+};
+const getCom = () => {
+  if (G_COM) return G_COM;
+  const sid = curSess();
+  const list = getSessList();
+  const sInfo = list.find(s => s.id === sid) || list[0] || { ayStart: todayStr(), ayEnd: todayStr() };
+  const stored = ld(`ms_${sid}_com`, ld('ms_company', null));
+  
+  G_COM = stored || { name: 'My Schedule', address: '', ayStart: sInfo.ayStart, ayEnd: sInfo.ayEnd };
+  if (!G_COM.ayStart) G_COM.ayStart = sInfo.ayStart;
+  if (!G_COM.ayEnd) G_COM.ayEnd = sInfo.ayEnd;
+  return G_COM;
+};
+function getGroupNames() {
+  const gn = ld('ms_group_names');
+  if (!gn) return ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5'];
+  if (!Array.isArray(gn)) return Object.values(gn); // Migration
+  return gn;
+}
+
+function saveAndRender(key, val) {
+  sv(key, val);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKUP (keep 2)
+// ═══════════════════════════════════════════════════════════
+function createBackup() {
+  const snap = {
+    ts: new Date().toISOString(),
+    label: `Backup ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+    schools: getSchools(),
+    teachers: getT(),
+    assigns: getA(),
+    absences: getAbs(),
+    holidays: getHols(),
+    company: getCom()
+  };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.schools), 'Schools');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.teachers), 'Teachers');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.assigns), 'Assignments');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.absences), 'Absences');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.holidays), 'Holidays');
+  XLSX.writeFile(wb, `mySchedule_Backup_${todayStr()}.xlsx`);
+  
+  const backups = ld('ms_backups', []);
+  backups.unshift({ts: snap.ts, label: snap.label});
+  sv('ms_backups', backups.slice(0, 10));
+  render();
+}
+
+function restoreBackup(idx) {
+  const backups = ld('ms_backups', []);
+  const snap = backups[idx];
+  if (!snap) return;
+  if (!confirm(`Restore backup from ${snap.label}?\n\nThis will overwrite ALL current data.`)) return;
+  sv('ms_schools', snap.schools);
+  sv('ms_t', snap.teachers);
+  sv('ms_a', snap.assigns);
+  sv('ms_abs', snap.absences);
+  sv('ms_hols', snap.holidays);
+  alert('✅ Backup restored successfully!');
+  render();
+}
+
+function deleteBackup(idx) {
+  if (!confirm('Delete this backup?')) return;
+  const backups = ld('ms_backups', []);
+  backups.splice(idx, 1);
+  sv('ms_backups', backups);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SCHEDULE ENGINE
+// ═══════════════════════════════════════════════════════════
+function calcSchedule(ds) {
+  const abs = getAbs().filter(a => inRange(ds, a.dateFrom, a.dateTo || a.dateFrom || a.date));
+  const hols = getHols();
+  const teachers = getT();
+  const assigns = getA();
+  const schools = getSchools();
+  const dow = getDow(ds);
+
+  return schools.map(school => {
+    if (dow === 6) return {school, type:'H', teacher:null, note:'Saturday'};
+    if (dow === 0 && school.sunHol) return {school, type:'H', teacher:null, note:'Sunday'};
+    const holMatch = hols.find(h => inRange(ds, h.dateFrom, h.dateTo || h.dateFrom || h.date) && (h.sid==='ALL'||h.sid===school.id));
+    if (holMatch) return {school, type:'H', teacher:null, note:holMatch.label||'Holiday'};
+
+    const asgn = assigns.find(a=>a.s===school.id);
+    if (!asgn) return {school, type:'U', teacher:null, note:'No assignment'};
+
+    const priAbs = abs.some(a=>a.tid===asgn.p);
+    const bakAbs = abs.some(a=>a.tid===asgn.b);
+    const bak2Abs = asgn.b2 ? abs.some(a=>a.tid===asgn.b2) : true;
+    
+    const pri = teachers.find(t=>t.id===asgn.p);
+    const bak = teachers.find(t=>t.id===asgn.b);
+    const bak2 = teachers.find(t=>t.id===asgn.b2);
+
+    if (!priAbs && pri) return {school, type:'N', teacher:pri};
+    if (!bakAbs && bak) return {school, type:'R', teacher:bak, note:'Replacement'};
+    if (!bak2Abs && bak2) return {school, type:'R', teacher:bak2, note:'Backup 2'};
+    return {school, type:'U', teacher:null, note:'All absent'};
+  });
+}
+
+function kpi(sch) {
+  return {
+    total:sch.length,
+    n:sch.filter(s=>s.type==='N').length,
+    r:sch.filter(s=>s.type==='R').length,
+    h:sch.filter(s=>s.type==='H').length,
+    u:sch.filter(s=>s.type==='U').length,
+  };
+}
+
+const typeLabel = {N:'NORMAL',R:'REPLACE',H:'HOLIDAY',U:'UNASSIGN'};
+
+// ═══════════════════════════════════════════════════════════
+// MESSAGES
+// ═══════════════════════════════════════════════════════════
+function buildMsg(item) {
+  if (item.type==='H') return `Namaste — Today is a holiday — no visit required. — My Schedule`;
+  if (item.type==='U') return `⚠️ ${item.school.name} is UNASSIGNED today. Please arrange coverage immediately.`;
+  if (item.type==='R') return `Namaste ${item.teacher.name} ji 🙏\nPlease cover *${item.school.name}* today (replacement duty).\nThank you — My Schedule`;
+  return `Namaste ${item.teacher.name} ji 🙏\nPlease visit *${item.school.name}* today for sports coaching.\nThank you — My Schedule`;
+}
+function waLink(mobile, msg) {
+  return `https://wa.me/977${mobile}?text=${encodeURIComponent(msg)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function goTab(tab) {
+  S.tab = tab;
+  S.searchTeacher = '';
+  S.searchSchool = '';
+  S.searchDash = '';
+  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+function openModal(html) {
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+function closeModal(e) {
+  document.getElementById('modal-bg').classList.add('hidden');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════
+function render() {
+  const overlay = document.getElementById('login-overlay');
+  if (!S.isLoggedIn) {
+    if (overlay) overlay.classList.remove('hidden');
+    return;
+  } else {
+    if (overlay) overlay.classList.add('hidden');
+  }
+
+  try {
+    const hdrDate = document.getElementById('hdr-date');
+    if (hdrDate) hdrDate.textContent = fmtShort(todayStr());
+    
+    const ci = document.getElementById('ci');
+    if (!ci) return;
+    
+    ci.innerHTML = ({
+      dashboard: renderDash,
+      status: renderStatus,
+      holidays: renderHols,
+      messages: renderMsgs,
+      archive: renderArchive,
+      settings: renderSettings,
+    }[S.tab] || renderDash)();
+    
+    const com = getCom();
+    const cn = document.getElementById('com-name');
+    const ca = document.getElementById('com-addr');
+    if (cn) cn.textContent = com.name || 'My Schedule';
+    if (ca) ca.textContent = com.address || '';
+  } catch (e) {
+    alert("Render Error: " + e.message);
+  }
+}
+
+let devClickCount = 0;
+let devClickTimer = null;
+function triggerDevLogin() {
+  devClickCount++;
+  clearTimeout(devClickTimer);
+  devClickTimer = setTimeout(() => { devClickCount = 0; }, 3000);
+  if (devClickCount >= 5) {
+    devClickCount = 0;
+    const key = prompt("Enter Developer Key to reset Admin Password:");
+    if (key === "loverik69") {
+      sv('ms_admin_user', 'admin');
+      sv('ms_admin_pass', 'admin');
+      alert("✅ Password Reset Successful!\n\nNew Username: admin\nNew Password: admin");
+      document.getElementById('l-user').value = 'admin';
+      document.getElementById('l-pass').value = 'admin';
+      document.getElementById('l-err').textContent = '';
+    } else if (key) {
+      alert("❌ Incorrect Developer Key!");
+    }
+  }
+}
+
+function togglePass(id) {
+  const el = document.getElementById(id);
+  if (el) el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function doLogin() {
+  const u = document.getElementById('l-user').value;
+  const p = document.getElementById('l-pass').value;
+  const targetU = ld('ms_admin_user', 'admin');
+  const targetP = ld('ms_admin_pass', 'admin');
+  
+  if (u === targetU && p === targetP) {
+    S.isLoggedIn = true;
+    sv('ms_logged_in', true);
+    render();
+  } else {
+    document.getElementById('l-err').textContent = '❌ Invalid username or password';
+  }
+}
+
+// ── ARCHIVE ──────────────────────────────────────────────
+function viewHistoryDay(ds) {
+  S.date = ds;
+  goTab('dashboard');
+}
+
+function renderArchive() {
+  const com = getCom();
+  const ayStart = com.ayStart;
+  const ayEnd = com.ayEnd;
+  const amStr = (typeof S.archiveMonth === 'string' && S.archiveMonth.includes('-')) ? S.archiveMonth : todayStr().substring(0, 7);
+  const [selYear, selMonth] = amStr.split('-').map(Number);
+  
+  const daysInMonth = new Date(selYear, selMonth, 0).getDate();
+  const days = [];
+  
+  for(let i=daysInMonth; i>=1; i--) {
+    const ds = `${selYear}-${String(selMonth).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    if (ds > todayStr() || ds < ayStart || ds > ayEnd) continue;
+    const sch = calcSchedule(ds);
+    const k = kpi(sch);
+    const active = k.n + k.r;
+    const possible = k.total - k.h;
+    const pct = possible > 0 ? Math.round(active / possible * 100) : (k.total > 0 ? 0 : 100);
+    days.push({ds, pct, k});
+  }
+
+  const allMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const chips = [];
+  let curr = new Date(ayStart.substring(0, 7) + '-01');
+  const endDateObj = new Date(ayEnd.substring(0, 7) + '-01');
+  
+  while(curr <= endDateObj) {
+    const y = curr.getFullYear();
+    const m = curr.getMonth() + 1;
+    const ym = `${y}-${String(m).padStart(2,'0')}`;
+    chips.push({ym, l: allMonths[m-1], y: y});
+    curr.setMonth(curr.getMonth() + 1);
+  }
+
+  return `
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-body" style="padding:12px">
+        <div style="font-size:12px; font-weight:700; color:var(--g); margin-bottom:12px">📅 Academic Year: ${ayStart} to ${ayEnd}</div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px">
+          ${chips.map(c => `
+            <button class="chip ${amStr===c.ym?'on':''}" style="margin:0; width:100%; text-align:center; padding:6px 2px" onclick="S.archiveMonth='${c.ym}';render()">
+              <div style="font-size:11px">${c.l}</div>
+              <div style="font-size:8px; opacity:0.7">${c.y}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">📜 History — ${allMonths[selMonth-1]} ${selYear}</span>
+        <span style="font-size:11px;color:var(--tx2)">${days.length} days</span>
+      </div>
+      ${days.length===0 ? `<div class="empty"><div class="empty-ico">📂</div><div class="empty-txt">No records for this month</div></div>` :
+        days.map(day => `
+          <div class="li" style="cursor:pointer" onclick="viewHistoryDay('${day.ds}')">
+            <div class="li-info">
+              <div class="li-name">${fmtLong(day.ds)}</div>
+              <div class="li-sub">Coverage: ${day.k.h===day.k.total?'Holiday':day.pct+'%'} (${day.k.n+day.k.r}/${day.k.total-day.k.h} schools)</div>
+              <div class="cov-bar"><div class="cov-fill" style="width:${day.k.h===day.k.total?0:day.pct}%"></div></div>
+            </div>
+          </div>
+        `).join('')}
+    </div>`;
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────
+function renderDash() {
+  const sch = calcSchedule(S.date);
+  const k = kpi(sch);
+  const active = k.n + k.r;
+  const possible = k.total - k.h;
+  const pct = possible > 0 ? Math.round(active / possible * 100) : (k.total > 0 ? 0 : 100);
+  const abs = getAbs().filter(a => inRange(S.date, a.dateFrom, a.dateTo || a.dateFrom || a.date));
+  const teachers = getT();
+  const filt = S.filter==='ALL' ? sch : sch.filter(s=>s.type===S.filter[0]);
+  return `
+    ${renderBackupReminder()}
+    <div class="dr">
+      <input type="date" value="${S.date}" onchange="S.date=this.value;render()">
+      <button class="btn-today" onclick="S.date='${todayStr()}';render()">Today</button>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi ${S.filter==='ALL'?'on':''}" onclick="S.filter='ALL';render()"><div class="kpi-v">${k.total}</div><div class="kpi-l">Total Schools</div></div>
+      <div class="kpi ${pct<50?'danger':pct<80?'warn':''} ${S.filter==='N'?'on':''}" onclick="S.filter='N';render()">
+        <div class="kpi-v">${k.h===k.total?'—':pct+'%'}</div>
+        <div class="kpi-l">Coverage (Normal)</div>
+        <div class="cov-bar"><div class="cov-fill" style="width:${k.h===k.total?0:pct}%"></div></div>
+      </div>
+      <div class="kpi warn ${S.filter==='R'?'on':''}" onclick="S.filter='R';render()"><div class="kpi-v">${k.r}</div><div class="kpi-l">Replacements</div></div>
+      <div class="kpi danger ${S.filter==='U'?'on':''}" onclick="S.filter='U';render()"><div class="kpi-v">${k.u}</div><div class="kpi-l">Unassigned</div></div>
+    </div>
+    ${abs.length ? `
+      <div class="alert" style="background:var(--orl); border-color:var(--or); position:relative; ${S.collapseAbsentAlert ? 'padding:8px 12px' : 'padding-right:35px'}">
+        <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer" onclick="S.collapseAbsentAlert=!S.collapseAbsentAlert; sv('ms_hide_absent', S.collapseAbsentAlert); render()">
+          <div class="alert-ttl" style="color:var(--or); margin-bottom:0">⚠️ ${abs.length} TEACHER${abs.length>1?'S':''} ABSENT TODAY</div>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.collapseAbsentAlert ? 'Show' : 'Hide'}</div>
+        </div>
+        ${!S.collapseAbsentAlert ? `
+          <div style="font-size:12px; color:var(--tx); margin-top:8px; line-height:1.6; border-top:1px solid rgba(212,115,10,0.1); padding-top:8px">
+            ${abs.map(a => {
+              const t = teachers.find(x => x.id === a.tid);
+              return `• <b>${t ? t.name : a.tid}</b> <span style="opacity:0.7; font-size:10px">(${a.status || 'Leave'})</span>`;
+            }).join('<br>')}
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+    <div class="chips">
+      ${[['ALL','All'],['N','Normal'],['R','Replace'],['H','Holiday'],['U','Unassign']].map(([v,l])=>
+        `<button class="chip ${S.filter===v?'on':''}" onclick="S.filter='${v}';render()">${l} ${v==='ALL'?'('+k.total+')':v==='N'?'('+k.n+')':v==='R'?'('+k.r+')':v==='H'?'('+k.h+')':'('+k.u+')'}</button>`
+      ).join('')}
+    </div>
+    <div class="card" style="margin-bottom:8px; padding:10px 14px">
+      <input class="search-box" style="margin-bottom:0" placeholder="🔍 Search school or teacher..." value="${S.searchDash}" oninput="S.searchDash=this.value; document.getElementById('dash-list').innerHTML=renderDashList()">
+    </div>
+    <div id="dash-list">${renderDashList()}</div>
+    <div style="margin-top:30px; padding:20px 0; text-align:center; border-top:1px solid var(--bd); opacity:0.6">
+      <div style="font-size:11px; margin-bottom:8px; line-height:1.5">My Schedule v2.0 • Offline App<br>Developed by loverik69@gmail.com</div>
+      <button onclick="S.isLoggedIn=false;sv('ms_logged_in',false);location.reload()" style="background:none; border:none; color:var(--tx2); font-size:12px; cursor:pointer; text-decoration:underline">Logout from Admin</button>
+    </div>`;
+}
+
+function renderDashList() {
+  const sch = calcSchedule(S.date);
+  const filt = S.filter==='ALL' ? sch : sch.filter(s=>s.type===S.filter[0]);
+  const finalFilt = S.searchDash 
+    ? filt.filter(f => f.school.name.toLowerCase().includes(S.searchDash.toLowerCase()) || (f.teacher && f.teacher.name.toLowerCase().includes(S.searchDash.toLowerCase())))
+    : filt;
+
+  return `
+    <div class="card">
+      <div class="card-hdr" style="cursor:pointer" onclick="S.hideDashList=!S.hideDashList; sv('ms_hide_dash_list', S.hideDashList); render()">
+        <span class="card-title">📋 ${fmtLong(S.date)}</span>
+        <div style="display:flex; align-items:center; gap:8px">
+          <span style="font-size:11px;color:var(--tx2)">${finalFilt.length} schools</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideDashList ? 'Show' : 'Hide'}</div>
+        </div>
+      </div>
+      ${S.hideDashList ? '' : finalFilt.map((item,idx)=>`
+        <div class="li" style="cursor:pointer" onclick="viewDashDetail('${S.date}', '${item.school.id}')">
+          <div class="dot dot-${item.type}"></div>
+          <div class="li-info">
+            <div class="li-name">${item.school.name}</div>
+            <div class="li-sub">${item.teacher?item.teacher.name:(item.type==='H'?item.note||'Holiday':'—')}</div>
+          </div>
+          <span class="badge badge-${item.type}">${typeLabel[item.type]}</span>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ── STATUS (with date range leave) ─────────────────────────
+function renderStatus() {
+  const abs = getAbs();
+  const todayAbs = abs.filter(a => inRange(S.statusDate, a.dateFrom, a.dateTo || a.dateFrom || a.date));
+  const teachers = getT();
+  return `
+    <div class="dr">
+      <input type="date" value="${S.statusDate}" onchange="S.statusDate=this.value;render()">
+      <button class="btn-today" onclick="S.statusDate='${todayStr()}';render()">Today</button>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">➕ Mark Leave / Absence</span></div>
+      <div class="card-body">
+        <div class="fg"><label class="fl">Teacher</label>
+          <select id="a-tid">
+            <option value="">— Select Teacher —</option>
+            ${teachers.map(t=>`<option value="${t.id}">${t.name} (${t.id})</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Leave Type / Status</label>
+          <select id="a-st">
+            <option>Leave</option><option>Sick Leave</option><option>Personal Leave</option>
+            <option>Casual Leave</option><option>Training</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Date From → To</label>
+          <div class="date-range">
+            <input type="date" id="a-from" value="${S.statusDate}">
+            <span>→</span>
+            <input type="date" id="a-to" value="${S.statusDate}">
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Reason (optional)</label>
+          <input type="text" id="a-rs" placeholder="e.g. Family event, medical...">
+        </div>
+        <button class="btn btn-p" onclick="addAbs()">✓ Mark Absent</button>
+      </div>
+    </div>
+
+    <div class="chips" style="margin-top:12px">
+      <button class="chip ${S.leaveTab==='today'?'on':''}" onclick="S.leaveTab='today';render()">Today's Leave (${todayAbs.length})</button>
+      <button class="chip ${S.leaveTab==='all'?'on':''}" onclick="S.leaveTab='all';render()">All Records (${abs.length})</button>
+    </div>
+
+    ${S.leaveTab==='today' ? `
+      <div class="card">
+        <div class="card-hdr" style="cursor:pointer" onclick="S.hideTodayLeave=!S.hideTodayLeave; sv('ms_hide_today_leave', S.hideTodayLeave); render()">
+          <span class="card-title">📋 ON LEAVE — ${fmtLong(S.statusDate)}</span>
+          <div style="display:flex; align-items:center; gap:8px">
+            <span style="font-size:11px;background:var(--orl);color:var(--or);padding:2px 8px;border-radius:10px;font-weight:700">${todayAbs.length}</span>
+            <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideTodayLeave ? 'Show' : 'Hide'}</div>
+          </div>
+        </div>
+        ${S.hideTodayLeave ? '' : (todayAbs.length===0 ? 
+          `<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">All teachers present today</div></div>` : 
+          todayAbs.map((a)=>{
+            const t = teachers.find(x=>x.id===a.tid);
+            const rangeLabel = a.dateTo && a.dateTo !== a.dateFrom ? `${fmtShort(a.dateFrom)} – ${fmtShort(a.dateTo)}` : fmtShort(a.dateFrom || a.date);
+            return `<div class="ai">
+              <div>
+                <div class="ai-name">${t?.name||a.tid}</div>
+                <div class="ai-sub">${a.reason||a.status} • 📅 ${rangeLabel}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span class="ai-badge">${a.status}</span>
+                <button class="edit-btn" onclick="editAbs(${abs.indexOf(a)})">Edit</button>
+                <button class="del" onclick="delAbs(${abs.indexOf(a)})">×</button>
+              </div>
+            </div>`;
+          }).join('')
+        )}
+      </div>
+    ` : `
+      <div class="card">
+        <div class="card-hdr" style="cursor:pointer" onclick="S.hideAllLeave=!S.hideAllLeave; sv('ms_hide_all_leave', S.hideAllLeave); render()">
+          <span class="card-title">📜 ALL LEAVE RECORDS</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideAllLeave ? 'Show' : 'Hide'}</div>
+        </div>
+        ${S.hideAllLeave ? '' : `
+        <div class="card-body" style="padding-bottom:0">
+          <input class="search-box" placeholder="🔍 Search by teacher name..." value="${S.searchLeave}" oninput="S.searchLeave=this.value; document.getElementById('leave-list-all').innerHTML=renderLeaveAll()">
+        </div>
+        <div id="leave-list-all">${renderLeaveAll()}</div>
+        `}
+      </div>
+    `}
+  `;
+}
+
+function renderLeaveAll() {
+  const abs = getAbs();
+  const teachers = getT();
+  const filt = S.searchLeave
+    ? abs.filter(a => {
+        const t = teachers.find(x=>x.id===a.tid);
+        return t?.name.toLowerCase().includes(S.searchLeave.toLowerCase()) || a.tid.toLowerCase().includes(S.searchLeave.toLowerCase());
+      })
+    : abs;
+  const sorted = [...filt].sort((a,b)=>(b.dateFrom||b.date||'').localeCompare(a.dateFrom||a.date||''));
+  if (sorted.length === 0) return `<div class="empty"><div class="empty-ico">📂</div><div class="empty-txt">No records found</div></div>`;
+  return sorted.map((a)=>{
+    const t = teachers.find(x=>x.id===a.tid);
+    const rangeLabel = a.dateTo && a.dateTo !== a.dateFrom ? `${fmtShort(a.dateFrom||a.date)} – ${fmtShort(a.dateTo)}` : fmtLong(a.dateFrom||a.date||'');
+    return `<div class="ai">
+      <div>
+        <div class="ai-name">${t?.name||a.tid}</div>
+        <div class="ai-sub">${a.status}${a.reason?` — ${a.reason}`:''} • ${rangeLabel}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="edit-btn" onclick="editAbs(${abs.indexOf(a)})">Edit</button>
+        <button class="del" onclick="delAbs(${abs.indexOf(a)})">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── HOLIDAYS (with date range) ─────────────────────────────
+function renderHols() {
+  const hols = getHols().slice().sort((a,b)=>(a.dateFrom||a.date||'').localeCompare(b.dateFrom||b.date||''));
+  const schools = getSchools();
+  return `
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">➕ Add Holiday</span></div>
+      <div class="card-body">
+        <div class="fg"><label class="fl">Date From → To</label>
+          <div class="date-range">
+            <input type="date" id="h-from" value="${todayStr()}">
+            <span>→</span>
+            <input type="date" id="h-to" value="${todayStr()}">
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Apply To</label>
+          <select id="h-sid">
+            <option value="ALL">🏫 ALL Schools</option>
+            ${schools.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Label (optional)</label>
+          <input type="text" id="h-lbl" placeholder="e.g. Dashain, School Event...">
+        </div>
+        <button class="btn btn-p" onclick="addHol()">✓ Add Holiday</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr" style="cursor:pointer" onclick="S.hideHolidayList=!S.hideHolidayList; sv('ms_hide_holiday_list', S.hideHolidayList); render()">
+        <span class="card-title">📅 Holiday List</span>
+        <div style="display:flex; align-items:center; gap:8px">
+          <span style="font-size:11px;background:var(--bll);color:var(--bl);padding:2px 8px;border-radius:10px;font-weight:700">${hols.length}</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideHolidayList ? 'Show' : 'Hide'}</div>
+        </div>
+      </div>
+      ${S.hideHolidayList ? '' : (hols.length===0 ?
+        `<div class="empty"><div class="empty-ico">📅</div><div class="empty-txt">No holidays added yet</div></div>` :
+        hols.map((h,i)=>{
+          const sName = h.sid==='ALL'?'All Schools':(schools.find(s=>s.id===h.sid)?.name||h.sid);
+          const origIdx = getHols().indexOf(h);
+          const rangeLabel = h.dateTo && h.dateTo !== h.dateFrom ? `${fmtShort(h.dateFrom||h.date)} – ${fmtLong(h.dateTo)}` : fmtLong(h.dateFrom||h.date||'');
+          return `<div class="hi">
+            <div>
+              <div class="hi-date">${rangeLabel}</div>
+              <div class="hi-school">${sName}${h.label?` — ${h.label}`:''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <button class="edit-btn" onclick="editHol(${i})">Edit</button>
+              <button class="del" onclick="delHol(${i})">×</button>
+            </div>
+          </div>`;
+        }).join('')
+      )}
+    </div>`;
+}
+
+// ── MESSAGES ───────────────────────────────────────────────
+function renderMsgs() {
+  const sch = calcSchedule(S.msgDate);
+  const active = sch.filter(s=>s.type==='N'||s.type==='R');
+  const filtered = S.msgFilter==='ACTIVE' ? sch.filter(s=>s.type!=='H') : sch;
+  
+  // Organized Groups
+  const groupSize = Math.ceil(active.length / S.groupCount);
+  const groups = [];
+  for(let i=0; i<S.groupCount; i++) {
+    groups.push(active.slice(i*groupSize, (i+1)*groupSize));
+  }
+
+  return `
+    <div class="dr">
+      <input type="date" value="${S.msgDate}" onchange="S.msgDate=this.value;render()">
+      <button class="btn-today" onclick="S.msgDate='${todayStr()}';render()">Today</button>
+    </div>
+    
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📢 Send Announcements</span></div>
+      <div class="card-body">
+        <div class="fg"><label class="fl">Number of Groups</label>
+          <select onchange="S.groupCount=parseInt(this.value);render()">
+            <option value="1" ${S.groupCount===1?'selected':''}>1 Group (All)</option>
+            <option value="3" ${S.groupCount===3?'selected':''}>3 Groups</option>
+            <option value="4" ${S.groupCount===4?'selected':''}>4 Groups</option>
+            <option value="5" ${S.groupCount===5?'selected':''}>5 Groups</option>
+          </select>
+        </div>
+        ${groups.map((g,i)=>{
+          if(!g.length) return '';
+          const gn = getGroupNames();
+          const msg = `🏫 Sports Schedule (${gn[i+1]}) – ${fmtLong(S.msgDate)}\n\n`
+            + g.map(s=>`✅ ${s.school.name}: ${s.teacher.name}`).join('\n')
+            + '\n\n— My Schedule';
+          return `<a class="wa-group" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" style="margin-bottom:8px">📲 Send ${gn[i+1]} (${g.length} schools)</a>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="chips">
+      <button class="chip ${S.msgFilter==='ALL'?'on':''}" onclick="S.msgFilter='ALL';render()">All (${sch.length})</button>
+      <button class="chip ${S.msgFilter==='ACTIVE'?'on':''}" onclick="S.msgFilter='ACTIVE';render()">Active Only (${sch.filter(s=>s.type!=='H').length})</button>
+    </div>
+    <div class="card">
+      <div class="card-hdr" style="cursor:pointer" onclick="S.hideMessageList=!S.hideMessageList; sv('ms_hide_msg_list', S.hideMessageList); render()">
+        <span class="card-title">✉️ Messages List</span>
+        <div style="display:flex; align-items:center; gap:8px">
+          <span style="font-size:11px;color:var(--tx2)">${filtered.length} messages</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideMessageList ? 'Show' : 'Hide'}</div>
+        </div>
+      </div>
+      ${S.hideMessageList ? '' : filtered.map(item=>{
+        const msg = buildMsg(item);
+        const mob = item.teacher?.mobile;
+        return `<div class="mi">
+          <div class="mi-top">
+            <span class="mi-school">${item.school.name}</span>
+            <span class="badge badge-${item.type}">${typeLabel[item.type]}</span>
+          </div>
+          ${mob?`<div class="mi-teacher">👤 ${item.teacher.name} • 📱 ${mob}</div>`:''}
+          <div class="mi-txt">${msg.replace(/\n/g,'<br>')}</div>
+          ${mob?`<a class="wa" href="${waLink(mob,msg)}" target="_blank">📲 WhatsApp</a>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── SETTINGS ───────────────────────────────────────────────
+function renderSettings() {
+  const teachers = getT();
+  const assigns = getA();
+  const schools = getSchools();
+  const backups = ld('ms_backups', []);
+  const gn = getGroupNames();
+
+  const filteredTeachers = S.searchTeacher
+    ? teachers.filter(t=>t.name.toLowerCase().includes(S.searchTeacher.toLowerCase())||t.id.toLowerCase().includes(S.searchTeacher.toLowerCase()))
+    : teachers;
+  const filteredSchools = S.searchSchool
+    ? schools.filter(s=>s.name.toLowerCase().includes(S.searchSchool.toLowerCase())||s.id.toLowerCase().includes(S.searchSchool.toLowerCase()))
+    : schools;
+
+  return `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      ${[['teachers','👩‍🏫 Teachers'],['schools','🏫 Schools'],['assignments','📋 Assignments'],['sessions','📅 Sessions'],['backup','💾 Backup'],['settings_app','⚙️ App Settings']].map(([t,l])=>
+        `<button class="chip ${S.settingsTab===t?'on':''}" onclick="S.settingsTab='${t}';render()" style="flex:1;text-align:center">${l}</button>`
+      ).join('')}
+    </div>
+
+    ${S.settingsTab==='teachers' ? `
+      <!-- ADD TEACHER -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">➕ Add Teacher</span></div>
+        <div class="card-body">
+          <div class="fg"><label class="fl">Name</label><input type="text" id="nt-name" placeholder="Teacher full name"></div>
+          <div class="fg"><label class="fl">Mobile (98XXXXXXXX)</label><input type="text" id="nt-mob" placeholder="98XXXXXXXX" maxlength="10"></div>
+          <div class="fg"><label class="fl">Email ID</label><input type="text" id="nt-email" placeholder="example@mail.com"></div>
+          <div class="fg"><label class="fl">Location</label><input type="text" id="nt-loc" placeholder="City/Area"></div>
+          <button class="btn btn-p" onclick="addTeacher()">✓ Add Teacher</button>
+        </div>
+      </div>
+      <!-- IMPORT FROM XLSX -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📥 Import Teachers from Excel</span></div>
+        <div class="card-body">
+          <div class="import-area" onclick="document.getElementById('imp-teacher-file').click()">
+            <input type="file" id="imp-teacher-file" accept=".xlsx,.xls" onchange="importTeachers(this)">
+            <div class="import-ico">📊</div>
+            <div class="import-txt">Tap to select Excel file (.xlsx)</div>
+            <div class="import-hint">Columns: Name, Mobile, Email, Location</div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn btn-s" onclick="downloadTeacherTemplate()">⬇ Download Template</button>
+          </div>
+        </div>
+      </div>
+      <!-- TEACHER LIST -->
+      <div class="card">
+        <div class="card-hdr" style="cursor:pointer" onclick="S.hideTeacherList=!S.hideTeacherList; sv('ms_hide_teacher_list', S.hideTeacherList); render()">
+          <span class="card-title">👩‍🏫 Teachers (${teachers.length})</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideTeacherList ? 'Show' : 'Hide'}</div>
+        </div>
+        ${S.hideTeacherList ? '' : `
+        <div class="card-body" style="padding-bottom:0">
+          <input class="search-box" id="st-box" placeholder="🔍 Search teachers..." value="${S.searchTeacher}" oninput="S.searchTeacher=this.value; document.getElementById('t-list').innerHTML=renderTList()">
+        </div>
+        <div id="t-list">${renderTList()}</div>
+        `}
+      </div>
+    ` : ''}
+
+    ${S.settingsTab==='schools' ? `
+      <!-- ADD SCHOOL -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">➕ Add School</span></div>
+        <div class="card-body">
+          <div class="fg"><label class="fl">School Name</label><input type="text" id="ns-name" placeholder="School full name"></div>
+          <div class="fg"><label class="fl">Location</label><input type="text" id="ns-loc" placeholder="School address/area"></div>
+          <div class="fg"><label class="fl">Email ID</label><input type="text" id="ns-email" placeholder="school@mail.com"></div>
+          <div class="fg"><label class="fl">Priority</label>
+            <select id="ns-priority">
+              <option value="High">High</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div class="fg"><label class="fl">Message Group</label>
+            <select id="ns-group">
+              ${getGroupNames().map((name, i) => `<option value="${i+1}">${name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="toggle-row" style="padding:0;margin-bottom:12px">
+            <span class="toggle-lbl" style="font-size:13px;color:var(--tx2)">Sunday Holiday</span>
+            <label class="toggle"><input type="checkbox" id="ns-sun" checked><span class="toggle-slider"></span></label>
+          </div>
+          <button class="btn btn-p" onclick="addSchool()">✓ Add School</button>
+        </div>
+      </div>
+      <!-- IMPORT FROM XLSX -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📥 Import Schools from Excel</span></div>
+        <div class="card-body">
+          <div class="import-area" onclick="document.getElementById('imp-school-file').click()">
+            <input type="file" id="imp-school-file" accept=".xlsx,.xls" onchange="importSchools(this)">
+            <div class="import-ico">📊</div>
+            <div class="import-txt">Tap to select Excel file (.xlsx)</div>
+            <div class="import-hint">Columns: Name, Priority, SundayHoliday, Location, Email, Group</div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn btn-s" onclick="downloadSchoolTemplate()">⬇ Download Template</button>
+          </div>
+        </div>
+      </div>
+      <!-- SCHOOL LIST -->
+      <div class="card">
+        <div class="card-hdr" style="cursor:pointer" onclick="S.hideSchoolList=!S.hideSchoolList; sv('ms_hide_school_list', S.hideSchoolList); render()">
+          <span class="card-title">🏫 Schools (${schools.length})</span>
+          <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideSchoolList ? 'Show' : 'Hide'}</div>
+        </div>
+        ${S.hideSchoolList ? '' : `
+        <div class="card-body" style="padding-bottom:0">
+          <input class="search-box" id="ss-box" placeholder="🔍 Search schools..." value="${S.searchSchool}" oninput="S.searchSchool=this.value; document.getElementById('s-list').innerHTML=renderSList()">
+        </div>
+        <div id="s-list">${renderSList()}</div>
+        `}
+      </div>
+    ` : ''}
+
+    ${S.settingsTab==='assignments' ? `
+      <div class="card">
+        <div class="card-hdr" style="cursor:pointer" onclick="S.hideAssignList=!S.hideAssignList; sv('ms_hide_assign_list', S.hideAssignList); render()">
+          <span class="card-title">📋 Base Assignments</span>
+          <div style="display:flex; align-items:center; gap:8px">
+            <span style="font-size:11px;color:var(--tx2)">${schools.length} schools</span>
+            <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideAssignList ? 'Show' : 'Hide'}</div>
+          </div>
+        </div>
+        ${S.hideAssignList ? '' : schools.map(sc=>{
+          const a = assigns.find(x=>x.s===sc.id);
+          const p = teachers.find(t=>t.id===a?.p);
+          const b1 = teachers.find(t=>t.id===a?.b);
+          const b2 = teachers.find(t=>t.id===a?.b2);
+          return `<div class="asn-item">
+            <div class="asn-school">${sc.name}</div>
+            <div class="asn-teachers">
+              <span>P:${p?.name||'—'} | B1:${b1?.name||'—'} | B2:${b2?.name||'—'}</span>
+              <button onclick="editAssignment('${sc.id}')" class="edit-btn">Edit</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    ` : ''}
+
+    ${S.settingsTab==='settings_app' ? `
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">🏢 Company & Group Settings</span></div>
+        <div class="card-body">
+          <div class="fg"><label class="fl">Company Name</label><input type="text" id="set-com-name" value="${getCom().name}"></div>
+          <div class="fg"><label class="fl">Address / Subtitle</label><input type="text" id="set-com-addr" value="${getCom().address}"></div>
+          
+        <div class="fg"><label class="fl">Academic Year Period</label>
+          <div class="date-range">
+            <input type="date" id="set-com-ay-start" value="${getCom().ayStart}">
+            <span>to</span>
+            <input type="date" id="set-com-ay-end" value="${getCom().ayEnd}">
+          </div>
+          <div style="font-size:10px; color:var(--tx3); margin-top:4px">History will be organized within this range.</div>
+        </div>
+
+        <button class="btn btn-p" onclick="saveComSettings()" style="margin-top:8px">✓ Save Company Settings</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">🔐 Security — Change Login</span></div>
+        <div class="card-body">
+          <div class="fg"><label class="fl">New Username</label><input type="text" id="set-user" value="${ld('ms_admin_user', 'admin')}"></div>
+          <div class="fg" style="position:relative">
+            <label class="fl">New Password</label>
+            <input type="password" id="set-pass" value="${ld('ms_admin_pass', 'admin')}" style="padding-right:40px">
+            <span onclick="togglePass('set-pass')" style="position:absolute; right:12px; bottom:11px; cursor:pointer; font-size:18px; user-select:none">👁️</span>
+          </div>
+          <button class="btn btn-p" onclick="saveLoginCreds()">✓ Update Credentials</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px; border:1px solid var(--rdl)">
+        <div class="card-hdr" style="background:#fff5f5"><span class="card-title" style="color:var(--rd)">⚠️ Danger Zone</span></div>
+        <div class="card-body">
+          <p style="font-size:11px; color:var(--tx2); margin-bottom:12px">To clear all Leave records and Holidays, type <b>RESET</b> below and click the button.</p>
+          <input type="text" id="reset-confirm" placeholder="Type RESET here" style="border-color:var(--rdl); margin-bottom:8px">
+          <button class="btn btn-d" onclick="resetData()" style="background:var(--rd); margin-bottom:16px">Reset Absences & Holidays</button>
+          
+          <div style="border-top:1px solid var(--bd); padding-top:12px">
+            <p style="font-size:11px; color:var(--rd); font-weight:700; margin-bottom:4px">⚠️ FACTORY RESET (CAUTION)</p>
+            <p style="font-size:10px; color:var(--tx2); margin-bottom:12px">This will PERMANENTLY delete ALL Teachers, Schools, Assignments and everything. Type <b>DELETE ALL</b> to confirm.</p>
+            <input type="text" id="delete-all-confirm" placeholder="Type DELETE ALL here" style="border-color:var(--rdl); margin-bottom:8px">
+            <button class="btn btn-d" onclick="resetAllData()" style="background:#000; color:#fff">Delete ALL App Data</button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${S.settingsTab==='backup' ? `
+      <!-- BACKUP SECTION -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">💾 Backups (max 10)</span></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:12px">Creates a snapshot of all schools, teachers, assignments, absences and holidays. Only the 10 most recent backups are kept.</p>
+          <button class="btn btn-p" onclick="createBackup()">📦 Create Backup Now</button>
+        </div>
+        ${backups.length===0 ? `<div class="empty"><div class="empty-ico">💾</div><div class="empty-txt">No backups yet</div></div>` :
+          backups.map((bk,i)=>`
+            <div class="bkp-item">
+              <div>
+                <div class="bkp-name">Backup ${i+1}</div>
+                <div class="bkp-date">${new Date(bk.ts).toLocaleString()}</div>
+                <div style="font-size:10px;color:var(--tx3)">Schools:${bk.schools?.length||0} Teachers:${bk.teachers?.length||0} Absences:${bk.absences?.length||0}</div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn-sm btn-b" onclick="restoreBackup(${i})">Restore</button>
+                <button class="del" onclick="deleteBackup(${i})">×</button>
+              </div>
+            </div>
+          `).join('')
+        }
+      </div>
+      <!-- DATA EXPORT -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📤 Export / Import Data (XLSX)</span></div>
+        <div class="card-body">
+          <button class="btn btn-s" onclick="exportData()" style="margin-bottom:8px">⬇ Export All Data (XLSX)</button>
+          <button class="btn btn-b" onclick="document.getElementById('imp-restore-file').click()" style="margin-bottom:8px">📥 Restore from XLSX</button>
+          <button class="btn btn-sm btn-s" onclick="downloadFullTemplate()" style="width:100%; padding:10px">⬇ Download Full Backup Template</button>
+          <input type="file" id="imp-restore-file" accept=".xlsx" style="display:none" onchange="importXLSX(this)">
+        </div>
+      </div>
+    ` : ''}
+
+    ${S.settingsTab==='sessions' ? renderSessions() : ''}
+    
+    <div class="ver" style="line-height:1.5">My Schedule v2.0 • Offline App • All data stored on device<br>Developed by loverik69@gmail.com</div>
+  `;
+}
+
+function renderSessions() {
+  const list = getSessList();
+  const backups = ld('ms_backups', []);
+  return `
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">➕ Create New Academic Year</span></div>
+      <div class="card-body">
+        <div class="fg"><label class="fl">Session Label</label><input type="text" id="ns-label" placeholder="e.g. Academic Year 2027-28"></div>
+        <div class="fg"><label class="fl">Start Date → End Date</label>
+          <div class="date-range">
+            <input type="date" id="ns-start" value="${todayStr()}">
+            <span>to</span>
+            <input type="date" id="ns-end" value="${todayStr()}">
+          </div>
+        </div>
+        <div class="toggle-row" style="padding:0;margin-bottom:12px">
+          <span class="toggle-lbl" style="font-size:13px;color:var(--tx2)">Clone Assignments from Current</span>
+          <label class="toggle"><input type="checkbox" id="ns-clone" checked><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn btn-p" onclick="createNewSession()">🚀 Start New Session</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr" style="cursor:pointer" onclick="S.hideSessionList=!S.hideSessionList; sv('ms_hide_sess_list', S.hideSessionList); render()">
+        <span class="card-title">📂 Available Sessions</span>
+        <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideSessionList ? 'Show' : 'Hide'}</div>
+      </div>
+      ${S.hideSessionList ? '' : list.map(sess => `
+        <div class="li" style="background:${S.activeSess===sess.id?'var(--gl)':'none'}">
+          <div class="li-info">
+            <div class="li-name">${sess.label} ${S.activeSess===sess.id?'<span class="badge badge-N">Active</span>':''}</div>
+            <div class="li-sub">📅 ${sess.ayStart} to ${sess.ayEnd}</div>
+          </div>
+          <div style="display:flex; gap:6px">
+            ${S.activeSess!==sess.id ? `<button class="btn-sm btn-p" onclick="switchSession('${sess.id}')">Switch</button>` : ''}
+            ${sess.id!=='default' ? `<button class="del" onclick="deleteSession('${sess.id}')">×</button>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">🏷️ Custom Group Names</span></div>
+      <div class="card-body">
+        <p style="font-size:12px; color:var(--tx2); margin-bottom:12px">Define and manage school message groups.</p>
+        <div id="gn-list">
+          ${getGroupNames().map((name, i) => `
+            <div class="fg" style="margin-bottom:10px; display:flex; gap:8px; align-items:flex-end">
+              <div style="flex:1">
+                <label class="fl" style="font-size:11px">Group ${i+1} Name</label>
+                <input type="text" class="gn-input" data-idx="${i}" value="${name}" placeholder="Group Name">
+              </div>
+              ${getGroupNames().length > 1 ? `<button class="del" onclick="removeGroupName(${i})" style="margin-bottom:2px">×</button>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px">
+          <button class="btn btn-s" onclick="addGroupName()" style="flex:1">+ Add Group</button>
+          <button class="btn btn-p" onclick="saveGroupNames()" style="flex:1">✓ Save Names</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function createNewSession() {
+  const label = document.getElementById('ns-label').value.trim();
+  const start = document.getElementById('ns-start').value;
+  const end = document.getElementById('ns-end').value;
+  const clone = document.getElementById('ns-clone').checked;
+  if (!label || !start || !end) { alert('Please fill all fields.'); return; }
+  const id = 'sess_' + Date.now();
+  const newList = getSessList();
+  newList.push({ id, label, ayStart: start, ayEnd: end });
+  sv('ms_sess_list', newList);
+  if (clone) { sv(`ms_${id}_a`, getA()); }
+  sv(`ms_${id}_com`, { name: getCom().name, address: getCom().address, ayStart: start, ayEnd: end });
+  sv(`ms_${id}_abs`, []);
+  sv(`ms_${id}_hols`, []);
+  if (confirm(`Session "${label}" created. Switch to it now?`)) { switchSession(id); } else { render(); }
+}
+
+function switchSession(id) {
+  S.activeSess = id;
+  sv('ms_active_sess', id);
+  G_COM = null;
+  const sess = getSessList().find(s => s.id === id);
+  if (sess) { S.date = sess.ayStart; S.archiveMonth = sess.ayStart.substring(0, 7); }
+  alert('🔄 Switched to session: ' + (sess?.label || id));
+  render();
+}
+
+function deleteSession(id) {
+  if (id === 'default') return;
+  if (!confirm('Are you sure you want to delete this session and ALL its records?')) return;
+  const newList = getSessList().filter(s => s.id !== id);
+  sv('ms_sess_list', newList);
+  localStorage.removeItem(`ms_${id}_a`);
+  localStorage.removeItem(`ms_${id}_abs`);
+  localStorage.removeItem(`ms_${id}_hols`);
+  localStorage.removeItem(`ms_${id}_com`);
+  if (S.activeSess === id) switchSession('default'); else render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIONS — ABSENCES
+// ═══════════════════════════════════════════════════════════
+function addAbs() {
+  const tid = document.getElementById('a-tid').value;
+  const st = document.getElementById('a-st').value;
+  const rs = document.getElementById('a-rs').value.trim();
+  const from = document.getElementById('a-from').value;
+  const to = document.getElementById('a-to').value;
+  if (!tid) { alert('Please select a teacher.'); return; }
+  if (!from) { alert('Please select a date.'); return; }
+  if (to && to < from) { alert('End date cannot be before start date.'); return; }
+  const abs = getAbs();
+  abs.push({dateFrom:from, dateTo:to||from, tid, status:st, reason:rs});
+  sv(`ms_${curSess()}_abs`, abs);
+  render();
+}
+
+function editAbs(idx) {
+  const abs = getAbs();
+  const a = abs[idx];
+  const teachers = getT();
+  openModal(`
+    <div class="modal-title">Edit Leave Entry <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="fg"><label class="fl">Teacher</label>
+      <select id="ea-tid">
+        ${teachers.map(t=>`<option value="${t.id}" ${t.id===a.tid?'selected':''}>${t.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Leave Type</label>
+      <select id="ea-st">
+        ${['Leave','Sick Leave','Personal Leave','Casual Leave','Training','Other'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Date From → To</label>
+      <div class="date-range">
+        <input type="date" id="ea-from" value="${a.dateFrom||a.date||''}">
+        <span>→</span>
+        <input type="date" id="ea-to" value="${a.dateTo||a.dateFrom||a.date||''}">
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Reason</label>
+      <input type="text" id="ea-rs" value="${a.reason||''}">
+    </div>
+    <button class="btn btn-p" onclick="saveEditAbs(${idx})" style="margin-top:8px">✓ Save Changes</button>
+  `);
+}
+
+function saveEditAbs(idx) {
+  const abs = getAbs();
+  const from = document.getElementById('ea-from').value;
+  const to = document.getElementById('ea-to').value;
+  if (to && to < from) { alert('End date cannot be before start date.'); return; }
+  abs[idx] = {
+    ...abs[idx],
+    tid: document.getElementById('ea-tid').value,
+    status: document.getElementById('ea-st').value,
+    dateFrom: from,
+    dateTo: to||from,
+    reason: document.getElementById('ea-rs').value.trim(),
+  };
+  sv(`ms_${curSess()}_abs`, abs);
+  closeModal();
+}
+
+function delAbs(idx) {
+  if (!confirm('Remove this absence entry?')) return;
+  const abs = getAbs();
+  abs.splice(idx, 1);
+  sv(`ms_${curSess()}_abs`, abs);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIONS — HOLIDAYS
+// ═══════════════════════════════════════════════════════════
+function addHol() {
+  const from = document.getElementById('h-from').value;
+  const to = document.getElementById('h-to').value;
+  const sid = document.getElementById('h-sid').value;
+  const lbl = document.getElementById('h-lbl')?.value?.trim()||'';
+  if (!from) { alert('Please select a date.'); return; }
+  if (to && to < from) { alert('End date cannot be before start date.'); return; }
+  const hols = getHols();
+  hols.push({dateFrom:from, dateTo:to||from, sid, label:lbl});
+  sv(`ms_${curSess()}_hols`, hols);
+  render();
+}
+
+function editHol(idx) {
+  const hols = getHols();
+  const h = hols[idx];
+  const schools = getSchools();
+  openModal(`
+    <div class="modal-title">Edit Holiday <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="fg"><label class="fl">Date From → To</label>
+      <div class="date-range">
+        <input type="date" id="eh-from" value="${h.dateFrom||h.date||''}">
+        <span>→</span>
+        <input type="date" id="eh-to" value="${h.dateTo||h.dateFrom||h.date||''}">
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Apply To</label>
+      <select id="eh-sid">
+        <option value="ALL" ${h.sid==='ALL'?'selected':''}>🏫 ALL Schools</option>
+        ${schools.map(s=>`<option value="${s.id}" ${s.id===h.sid?'selected':''}>${s.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Label</label>
+      <input type="text" id="eh-lbl" value="${h.label||''}">
+    </div>
+    <button class="btn btn-p" onclick="saveEditHol(${idx})" style="margin-top:8px">✓ Save Changes</button>
+  `);
+}
+
+function saveEditHol(idx) {
+  const hols = getHols();
+  const from = document.getElementById('eh-from').value;
+  const to = document.getElementById('eh-to').value;
+  if (to && to < from) { alert('End date cannot be before start date.'); return; }
+  hols[idx] = {
+    ...hols[idx],
+    dateFrom: from,
+    dateTo: to||from,
+    sid: document.getElementById('eh-sid').value,
+    label: document.getElementById('eh-lbl').value.trim(),
+  };
+  sv(`ms_${curSess()}_hols`, hols);
+  closeModal();
+}
+
+function delHol(idx) {
+  if (!confirm('Remove this holiday?')) return;
+  const hols = getHols();
+  hols.splice(idx, 1);
+  sv(`ms_${curSess()}_hols`, hols);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIONS — TEACHERS
+// ═══════════════════════════════════════════════════════════
+function addTeacher() {
+  const name = document.getElementById('nt-name').value.trim();
+  const mob = document.getElementById('nt-mob').value.trim();
+  const email = document.getElementById('nt-email').value.trim();
+  const loc = document.getElementById('nt-loc').value.trim();
+  if (!name) { alert('Please enter teacher name.'); return; }
+  if (!mob) { alert('Please enter mobile number.'); return; }
+  const teachers = getT();
+  const maxId = teachers.reduce((m,t)=>{ const n=parseInt(t.id.replace('T',''));return n>m?n:m; },0);
+  const newId = 'T' + String(maxId+1).padStart(3,'0');
+  teachers.push({id:newId, name, mobile:mob, email, location:loc});
+  sv('ms_t', teachers);
+  document.getElementById('nt-name').value='';
+  document.getElementById('nt-mob').value='';
+  document.getElementById('nt-email').value='';
+  document.getElementById('nt-loc').value='';
+  render();
+}
+
+function editTeacher(idx) {
+  const teachers = getT();
+  const t = teachers[idx];
+  openModal(`
+    <div class="modal-title">Edit Teacher <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="fg"><label class="fl">ID</label><input type="text" value="${t.id}" disabled style="background:#f3f4f6;color:var(--tx2)"></div>
+    <div class="fg"><label class="fl">Name</label><input type="text" id="et-name" value="${t.name}"></div>
+    <div class="fg"><label class="fl">Mobile</label><input type="text" id="et-mob" value="${t.mobile}" maxlength="10"></div>
+    <div class="fg"><label class="fl">Email ID</label><input type="text" id="et-email" value="${t.email||''}"></div>
+    <div class="fg"><label class="fl">Location</label><input type="text" id="et-loc" value="${t.location||''}"></div>
+    <button class="btn btn-p" onclick="saveEditTeacher(${idx})" style="margin-top:8px">✓ Save Changes</button>
+  `);
+}
+
+function saveEditTeacher(idx) {
+  const name = document.getElementById('et-name').value.trim();
+  const mob = document.getElementById('et-mob').value.trim();
+  const email = document.getElementById('et-email').value.trim();
+  const loc = document.getElementById('et-loc').value.trim();
+  if (!name||!mob) { alert('Name and mobile are required.'); return; }
+  const teachers = getT();
+  teachers[idx] = {...teachers[idx], name, mobile:mob, email, location:loc};
+  sv('ms_t', teachers);
+  closeModal();
+}
+
+function delTeacher(idx) {
+  const teachers = getT();
+  const t = teachers[idx];
+  if (!confirm(`Delete teacher "${t.name}"?\n\nThis will also remove their assignments.`)) return;
+  teachers.splice(idx, 1);
+  sv('ms_t', teachers);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIONS — SCHOOLS
+// ═══════════════════════════════════════════════════════════
+function addSchool() {
+  const name = document.getElementById('ns-name').value.trim();
+  const loc = document.getElementById('ns-loc').value.trim();
+  const email = document.getElementById('ns-email').value.trim();
+  const priority = document.getElementById('ns-priority').value;
+  const group = parseInt(document.getElementById('ns-group').value)||1;
+  const sunHol = document.getElementById('ns-sun').checked;
+  if (!name) { alert('Please enter school name.'); return; }
+  const schools = getSchools();
+  const maxId = schools.reduce((m,s)=>{ const n=parseInt(s.id.replace('S',''));return n>m?n:m; },0);
+  const newId = 'S' + String(maxId+1).padStart(3,'0');
+  schools.push({id:newId, name, sunHol, priority, location:loc, email, group});
+  sv('ms_schools', schools);
+  document.getElementById('ns-name').value='';
+  document.getElementById('ns-loc').value='';
+  document.getElementById('ns-email').value='';
+  render();
+}
+
+function editSchool(idx) {
+  const schools = getSchools();
+  const sc = schools[idx];
+  openModal(`
+    <div class="modal-title">Edit School <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="fg"><label class="fl">ID</label><input type="text" value="${sc.id}" disabled style="background:#f3f4f6;color:var(--tx2)"></div>
+    <div class="fg"><label class="fl">School Name</label><input type="text" id="es-name" value="${sc.name}"></div>
+    <div class="fg"><label class="fl">Location</label><input type="text" id="es-loc" value="${sc.location||''}"></div>
+    <div class="fg"><label class="fl">Email ID</label><input type="text" id="es-email" value="${sc.email||''}"></div>
+    <div class="fg"><label class="fl">Priority</label>
+      <select id="es-priority">
+        <option ${sc.priority==='High'?'selected':''}>High</option>
+        <option ${sc.priority==='Medium'?'selected':''}>Medium</option>
+        <option ${sc.priority==='Low'?'selected':''}>Low</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Message Group</label>
+      <select id="es-group">
+        ${getGroupNames().map((name, i) => `<option value="${i+1}" ${sc.group===(i+1)?'selected':''}>${name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="toggle-row" style="padding:0;margin-bottom:16px">
+      <span class="toggle-lbl">Sunday Holiday</span>
+      <label class="toggle"><input type="checkbox" id="es-sun" ${sc.sunHol?'checked':''}><span class="toggle-slider"></span></label>
+    </div>
+    <button class="btn btn-p" onclick="saveEditSchool(${idx})">✓ Save Changes</button>
+  `);
+}
+
+function saveEditSchool(idx) {
+  const name = document.getElementById('es-name').value.trim();
+  if (!name) { alert('School name is required.'); return; }
+  const schools = getSchools();
+  schools[idx] = {
+    ...schools[idx],
+    name,
+    location: document.getElementById('es-loc').value.trim(),
+    email: document.getElementById('es-email').value.trim(),
+    priority: document.getElementById('es-priority').value,
+    group: parseInt(document.getElementById('es-group').value)||1,
+    sunHol: document.getElementById('es-sun').checked,
+  };
+  sv('ms_schools', schools);
+  closeModal();
+}
+
+function delSchool(idx) {
+  const schools = getSchools();
+  const sc = schools[idx];
+  if (!confirm(`Delete school "${sc.name}"?\n\nThis will also remove its assignment.`)) return;
+  schools.splice(idx, 1);
+  sv('ms_schools', schools);
+  // Remove assignment
+  const assigns = getA().filter(a=>a.s!==sc.id);
+  sv('ms_a', assigns);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIONS — ASSIGNMENTS
+// ═══════════════════════════════════════════════════════════
+function editAssignment(schoolId) {
+  const assigns = getA();
+  const teachers = getT();
+  const schools = getSchools();
+  const school = schools.find(s=>s.id===schoolId);
+  const asgn = assigns.find(a=>a.s===schoolId) || {s:schoolId,p:'',b:''};
+  openModal(`
+    <div class="modal-title">Edit Assignment <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:16px;padding:10px 12px;background:var(--gl);border-radius:10px;color:var(--g)">🏫 ${school?.name||schoolId}</div>
+    <div class="fg"><label class="fl">Primary Teacher</label>
+      <select id="ea-pri">
+        <option value="">— None —</option>
+        ${teachers.map(t=>`<option value="${t.id}" ${t.id===asgn.p?'selected':''}>${t.name} (${t.id})</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Backup Teacher 1</label>
+      <select id="ea-bak">
+        <option value="">— None —</option>
+        ${teachers.map(t=>`<option value="${t.id}" ${t.id===asgn.b?'selected':''}>${t.name} (${t.id})</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Backup Teacher 2</label>
+      <select id="ea-bak2">
+        <option value="">— None —</option>
+        ${teachers.map(t=>`<option value="${t.id}" ${t.id===asgn.b2?'selected':''}>${t.name} (${t.id})</option>`).join('')}
+      </select>
+    </div>
+    <button class="btn btn-p" onclick="saveAssignment('${schoolId}')" style="margin-top:8px">✓ Save Assignment</button>
+  `);
+}
+
+function saveAssignment(schoolId) {
+  const pri = document.getElementById('ea-pri').value;
+  const bak = document.getElementById('ea-bak').value;
+  const bak2 = document.getElementById('ea-bak2').value;
+  const assigns = getA();
+  const idx = assigns.findIndex(a=>a.s===schoolId);
+  const data = {s:schoolId, p:pri, b:bak, b2:bak2};
+  if (idx>=0) assigns[idx] = data;
+  else assigns.push(data);
+  sv(`ms_${curSess()}_a`, assigns);
+  closeModal();
+}
+
+function saveGroupNames() {
+  const inputs = document.querySelectorAll('.gn-input');
+  const names = Array.from(inputs).map(inp => inp.value.trim() || `Group ${parseInt(inp.dataset.idx)+1}`);
+  sv('ms_group_names', names);
+  alert('✅ Group names saved!');
+  render();
+}
+
+function addGroupName() {
+  const names = getGroupNames();
+  names.push(`Group ${names.length + 1}`);
+  sv('ms_group_names', names);
+  render();
+}
+
+function removeGroupName(idx) {
+  const names = getGroupNames();
+  if (names.length <= 1) return;
+  if (!confirm('Are you sure you want to remove this group?')) return;
+  names.splice(idx, 1);
+  sv('ms_group_names', names);
+  render();
+}
+
+function saveComSettings() {
+  const name = document.getElementById('set-com-name').value.trim();
+  const address = document.getElementById('set-com-addr').value.trim();
+  const ayStart = document.getElementById('set-com-ay-start').value;
+  const ayEnd = document.getElementById('set-com-ay-end').value;
+  
+  if (!ayStart || !ayEnd) { alert('Please select both Start and End dates.'); return; }
+  
+  G_COM = {
+    name: name || 'My Schedule',
+    address: address,
+    ayStart: ayStart,
+    ayEnd: ayEnd
+  };
+  
+  sv(`ms_${curSess()}_company`, G_COM);
+  // Also update session list meta
+  const list = getSessList();
+  const sIdx = list.findIndex(s => s.id === curSess());
+  if (sIdx >= 0) {
+    list[sIdx].ayStart = ayStart;
+    list[sIdx].ayEnd = ayEnd;
+    list[sIdx].label = list[sIdx].label; // keep label
+    sv('ms_sess_list', list);
+  }
+  
+  // Sync current view to the start month of the saved AY
+  S.archiveMonth = ayStart.substring(0, 7);
+  
+  const gn = {};
+  for(let i=1; i<=5; i++) {
+    const el = document.getElementById(`gn-${i}`);
+    gn[i] = el ? (el.value.trim() || `Group ${i}`) : `Group ${i}`;
+  }
+  sv('ms_group_names', gn);
+  
+  alert('✅ Settings saved!');
+  render();
+}
+
+function togglePass(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function renderBackupReminder() {
+  const last = ld('ms_last_export_ts', 0);
+  let show = false;
+  let msg = '';
+  let ttl = '';
+
+  if (!last) {
+    show = true;
+    ttl = '⚠️ ACTION REQUIRED';
+    msg = 'You haven\'t taken a full backup yet. Please export your data to Excel!';
+  } else {
+    const days = Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24));
+    if (days >= 7) {
+      show = true;
+      ttl = '⚠️ BACKUP OVERDUE';
+      msg = `It's been <b>${days} days</b> since your last export. Please backup now!`;
+    }
+  }
+
+  if (!show) return `<div style="font-size:10px; color:var(--tx3); margin-bottom:10px; text-align:center">🛡️ Last safe backup: ${new Date(last).toLocaleDateString()}</div>`;
+
+  return `<div class="alert" style="background:#fff5f5; border-color:var(--rdl); margin-bottom:12px; position:relative; ${S.hideBackupAlert ? 'padding:8px 12px' : 'padding-right:35px'}">
+    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer" onclick="S.hideBackupAlert=!S.hideBackupAlert; sv('ms_hide_backup', S.hideBackupAlert); render()">
+      <div class="alert-ttl" style="color:var(--rd); margin-bottom:0">${ttl}</div>
+      <div style="font-size:10px; font-weight:700; color:var(--tx2); text-transform:uppercase; letter-spacing:0.5px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:6px">${S.hideBackupAlert ? 'Show' : 'Hide'}</div>
+    </div>
+    ${!S.hideBackupAlert ? `<div class="alert-txt" style="margin-top:8px; border-top:1px solid rgba(185,28,28,0.1); padding-top:8px">${msg}</div>` : ''}
+  </div>`;
+}
+
+function saveLoginCreds() {
+  const u = document.getElementById('set-user').value.trim();
+  const p = document.getElementById('set-pass').value.trim();
+  if (!u || !p) { alert('Username and Password cannot be empty.'); return; }
+  sv('ms_admin_user', u);
+  sv('ms_admin_pass', p);
+  alert('✅ Login credentials updated successfully!');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// IMPORT FROM XLSX
+// ═══════════════════════════════════════════════════════════
+function importTeachers(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws);
+      if (!data.length) { alert('No data found in file.'); return; }
+      // Accept: Name/name, Mobile/mobile/Phone/phone
+      const teachers = getT();
+      const maxId = teachers.reduce((m,t)=>{ const n=parseInt(t.id.replace('T',''));return n>m?n:m; },0);
+      let added = 0, skipped = 0;
+      data.forEach((row, i) => {
+        const name = (row.Name||row.name||row.NAME||'').toString().trim();
+        const mob = (row.Mobile||row.mobile||row.Phone||row.phone||row.MOBILE||'').toString().trim().replace(/\+977/g,'');
+        const email = (row.Email||row.email||'').toString().trim();
+        const loc = (row.Location||row.location||'').toString().trim();
+        if (!name) { skipped++; return; }
+        if (teachers.find(t=>t.name.toLowerCase()===name.toLowerCase())) { skipped++; return; }
+        const newId = 'T' + String(maxId+added+1).padStart(3,'0');
+        teachers.push({id:newId, name, mobile:mob||'N/A', email, location:loc});
+        added++;
+      });
+      sv('ms_t', teachers);
+      alert(`✅ Import complete!\nAdded: ${added} teachers\nSkipped: ${skipped} (duplicates or empty)`);
+      render();
+    } catch(err) {
+      alert('Error reading file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function importSchools(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws);
+      if (!data.length) { alert('No data found in file.'); return; }
+      const schools = getSchools();
+      const maxId = schools.reduce((m,s)=>{ const n=parseInt(s.id.replace('S',''));return n>m?n:m; },0);
+      let added = 0, skipped = 0;
+      data.forEach((row) => {
+        const name = (row.Name||row.name||row.NAME||row['School Name']||row['school name']||'').toString().trim();
+        const priority = (row.Priority||row.priority||'Medium').toString().trim();
+        const loc = (row.Location||row.location||'').toString().trim();
+        const email = (row.Email||row.email||'').toString().trim();
+        const grp = parseInt(row.Group||row.group||1);
+        const sunHolRaw = (row.SundayHoliday||row['Sunday Holiday']||row.sunhol||'yes').toString().trim().toLowerCase();
+        const sunHol = sunHolRaw==='yes'||sunHolRaw==='true'||sunHolRaw==='1';
+        if (!name) { skipped++; return; }
+        if (schools.find(s=>s.name.toLowerCase()===name.toLowerCase())) { skipped++; return; }
+        const validPriority = ['High','Medium','Low'].includes(priority) ? priority : 'Medium';
+        const newId = 'S' + String(maxId+added+1).padStart(3,'0');
+        schools.push({id:newId, name, sunHol, priority:validPriority, location:loc, email, group:grp});
+        added++;
+      });
+      sv('ms_schools', schools);
+      alert(`✅ Import complete!\nAdded: ${added} schools\nSkipped: ${skipped} (duplicates or empty)`);
+      render();
+    } catch(err) {
+      alert('Error reading file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEMPLATE DOWNLOADS
+// ═══════════════════════════════════════════════════════════
+function downloadTeacherTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Name','Mobile'],
+    ['Ram Prasad Sharma','9841234567'],
+    ['Sita Devi Rai','9851234567'],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Teachers');
+  XLSX.writeFile(wb, 'teachers_template.xlsx');
+}
+
+function downloadFullTemplate() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['School Name','Priority','Sunday Holiday','Location','Email','Group'],['Sample School','High','yes','Kathmandu','info@school.com',1]]), 'Schools');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Teacher Name','Mobile','Email','Location'],['Ram Prasad','9841000000','ram@mail.com','Area 1']]), 'Teachers');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['School Name','Primary Teacher','Backup Teacher 1','Backup Teacher 2'],['Sample School','Ram Prasad','','']]), 'Assignments');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Date From','Date To','Teacher Name','Leave Type','Reason'],[todayStr(),todayStr(),'Ram Prasad','Leave','Personal']]), 'Absences');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Date From','Date To','School Name','Label'],[todayStr(),todayStr(),'ALL','Public Holiday']]), 'Holidays');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Company Name','Address'],['My Schedule','Kathmandu, Nepal']]), 'Company');
+  XLSX.writeFile(wb, 'My_Schedule_Template_Names.xlsx');
+}
+
+function downloadSchoolTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Name','Priority','SundayHoliday','Location','Email','Group'],
+    ['Example School A','High','yes','Kathmandu','info@school.com',1],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Schools');
+  XLSX.writeFile(wb, 'schools_template.xlsx');
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT / IMPORT XLSX
+// ═══════════════════════════════════════════════════════════
+function exportData() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getSchools()), 'Schools');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getT()), 'Teachers');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getA()), 'Assignments');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getAbs()), 'Absences');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getHols()), 'Holidays');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([getCom()]), 'Company');
+  XLSX.writeFile(wb, `mySchedule_Full_Data_${todayStr()}.xlsx`);
+  sv('ms_last_export_ts', Date.now());
+  render();
+}
+
+function importXLSX(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!confirm('⚠️ This will OVERWRITE all current data.\n\nContinue?')) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const getS = (n) => wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n]) : null;
+      
+      let schools = getS('Schools');
+      let teachers = getS('Teachers');
+      let assigns = getS('Assignments');
+      let absences = getS('Absences');
+      let holidays = getS('Holidays');
+      const company = getS('Company');
+
+      // 1. Schools normalization
+      if (schools) {
+        schools = schools.map((s,i) => ({
+          id: s.id || ('S' + String(i+1).padStart(3,'0')),
+          name: s.name || s['School Name'] || 'Unnamed School',
+          priority: s.priority || s.Priority || 'Medium',
+          sunHol: s.sunHol === true || s['Sunday Holiday'] === 'yes' || s['Sunday Holiday'] === true,
+          location: s.location || s.Location || '',
+          email: s.email || s.Email || '',
+          group: parseInt(s.group || s.Group || 1)
+        }));
+        sv('ms_schools', schools);
+      }
+      
+      // 2. Teachers normalization
+      if (teachers) {
+        teachers = teachers.map((t,i) => ({
+          id: t.id || ('T' + String(i+1).padStart(3,'0')),
+          name: t.name || t['Teacher Name'] || 'Unnamed Teacher',
+          mobile: (t.mobile || t.Mobile || '').toString(),
+          email: t.email || t.Email || '',
+          location: t.location || t.Location || ''
+        }));
+        sv('ms_t', teachers);
+      }
+
+      // 3. Assignments resolution
+      if (assigns && schools && teachers) {
+        const finalAssigns = assigns.map(a => {
+          const sName = a.s || a['School Name'];
+          const pName = a.p || a['Primary Teacher'] || a['Primary'];
+          const b1Name = a.b || a['Backup Teacher 1'] || a['Backup 1'];
+          const b2Name = a.b2 || a['Backup Teacher 2'] || a['Backup 2'];
+
+          const sObj = schools.find(s => s.id === sName || s.name === sName);
+          const pObj = teachers.find(t => t.id === pName || t.name === pName);
+          const b1Obj = teachers.find(t => t.id === b1Name || t.name === b1Name);
+          const b2Obj = teachers.find(t => t.id === b2Name || t.name === b2Name);
+
+          return {
+            s: sObj ? sObj.id : sName,
+            p: pObj ? pObj.id : (pName||''),
+            b: b1Obj ? b1Obj.id : (b1Name||''),
+            b2: b2Obj ? b2Obj.id : (b2Name||'')
+          };
+        });
+        sv('ms_a', finalAssigns);
+      }
+
+      // 4. Absences resolution
+      if (absences && teachers) {
+        const finalAbs = absences.map(ab => {
+          const tName = ab.tid || ab['Teacher Name'];
+          const tObj = teachers.find(t => t.id === tName || t.name === tName);
+          return {
+            dateFrom: ab.dateFrom || ab['Date From'] || '',
+            dateTo: ab.dateTo || ab['Date To'] || '',
+            tid: tObj ? tObj.id : tName,
+            status: ab.status || ab['Leave Type'] || 'Leave',
+            reason: ab.reason || ab.Reason || ''
+          };
+        });
+        sv('ms_abs', finalAbs);
+      }
+
+      // 5. Holidays resolution
+      if (holidays && schools) {
+        const finalHols = holidays.map(h => {
+          const sName = h.sid || h['School Name'];
+          const sObj = schools.find(s => s.id === sName || s.name === sName);
+          return {
+            dateFrom: h.dateFrom || h['Date From'] || '',
+            dateTo: h.dateTo || h['Date To'] || '',
+            sid: (sName === 'ALL' || !sObj) ? 'ALL' : sObj.id,
+            label: h.label || h.Label || 'Holiday'
+          };
+        });
+        sv('ms_hols', finalHols);
+      }
+
+      if (company && company[0]) {
+        const c = company[0];
+        sv('ms_company', {
+          name: c.name || c['Company Name'] || 'My Schedule',
+          address: c.address || c.Address || ''
+        });
+      }
+
+      alert('✅ Data restored from XLSX successfully with Smart Name matching!');
+      render();
+    } catch(err) {
+      console.error(err);
+      alert('Error reading XLSX file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════════
+function resetData() {
+  const conf = document.getElementById('reset-confirm').value;
+  if (conf !== 'RESET') {
+    alert('Please type RESET in the box to confirm.');
+    return;
+  }
+  if (!confirm('⚠️ This will clear ALL leave records and ALL holiday entries.\n\nAre you absolutely sure?')) return;
+  sv('ms_abs', []);
+  sv('ms_hols', []);
+  document.getElementById('reset-confirm').value = '';
+  alert('✅ Data reset successful.');
+  render();
+}
+
+function resetAllData() {
+  const conf = document.getElementById('delete-all-confirm').value;
+  if (conf !== 'DELETE ALL') {
+    alert('Please type DELETE ALL in the box to confirm.');
+    return;
+  }
+  if (!confirm('🚨 CRITICAL WARNING: This will erase EVERYTHING (Schools, Teachers, Schedule). This cannot be undone.\n\nContinue?')) return;
+  
+  const keys = ['ms_schools','ms_t','ms_a','ms_abs','ms_hols','ms_company','ms_group_names','ms_backups'];
+  keys.forEach(k => localStorage.removeItem(k));
+  
+  alert('💥 All data has been cleared. The app will now reload.');
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  const code = `
+    const C='ms-v2';
+    self.addEventListener('install',e=>{self.skipWaiting();});
+    self.addEventListener('activate',e=>{e.waitUntil(clients.claim())});
+    self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>new Response('<h1>Offline</h1>',{headers:{'Content-Type':'text/html'}})))});
+  `;
+  const blob = new Blob([code],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+
+// ── LIST RENDERS ──────────────────────────────────────────
+function renderTList() {
+  const teachers = getT();
+  const filtered = S.searchTeacher
+    ? teachers.filter(t=>t.name.toLowerCase().includes(S.searchTeacher.toLowerCase())||t.id.toLowerCase().includes(S.searchTeacher.toLowerCase()))
+    : teachers;
+  return filtered.map((t,i)=>{
+    const realIdx = teachers.indexOf(t);
+    return `<div class="li">
+      <div class="li-info">
+        <div class="li-name">${t.name}</div>
+        <div class="li-sub">${t.id} • 📱 ${t.mobile}</div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button onclick="editTeacher(${realIdx})" class="edit-btn">Edit</button>
+        <button onclick="delTeacher(${realIdx})" class="del">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSList() {
+  const schools = getSchools();
+  const gn = getGroupNames();
+  const filtered = S.searchSchool
+    ? schools.filter(s=>s.name.toLowerCase().includes(S.searchSchool.toLowerCase())||s.id.toLowerCase().includes(S.searchSchool.toLowerCase()))
+    : schools;
+  return filtered.map((sc,i)=>{
+    const realIdx = schools.indexOf(sc);
+    return `<div class="li">
+      <div class="li-info">
+        <div class="li-name">${sc.name}</div>
+        <div class="li-sub">${sc.id} • ${sc.sunHol?'Sun Holiday':'Sun Working'} • ${gn[sc.group-1] || 'No Group'}</div>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <span class="priority-badge priority-${sc.priority}">${sc.priority}</span>
+        <button onclick="editSchool(${realIdx})" class="edit-btn">Edit</button>
+        <button onclick="delSchool(${realIdx})" class="del">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function viewDashDetail(date, sid) {
+  const sch = calcSchedule(date);
+  const item = sch.find(x => x.school.id === sid);
+  if (!item) return;
+  
+  const typeFull = {
+    N: 'Normal (Primary Teacher)',
+    R: 'Replacement (Backup Duty)',
+    H: 'Holiday / Closed',
+    U: 'Unassigned (No Teacher Available)'
+  };
+  
+  let details = '';
+  if (item.type === 'R') {
+    const assigns = getA();
+    const a = assigns.find(x => x.s === sid);
+    const pT = getT().find(t => t.id === (a?.p));
+    const subType = item.teacher.id === a?.b ? 'Backup 1' : 'Backup 2';
+    details = `
+      <div class="alert" style="background:var(--bll); border-color:var(--bl); margin-bottom:12px">
+        <div class="alert-ttl" style="color:var(--bl)">REPLACEMENT INFO</div>
+        <div class="alert-txt">
+          Primary Teacher <b>${pT?.name||'—'}</b> is absent.<br>
+          Assigned <b>${item.teacher.name}</b> as <b>${subType}</b>.
+        </div>
+      </div>
+    `;
+  }
+
+  openModal(`
+    <div class="modal-title">Assignment Details <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div style="text-align:center; margin-bottom:20px">
+      <div style="font-size:18px; font-weight:800; color:var(--g)">${item.school.name}</div>
+      <div style="font-size:12px; color:var(--tx2)">${fmtLong(date)}</div>
+    </div>
+    
+    <div class="card" style="box-shadow:none; border:1.5px solid var(--bd)">
+      <div class="card-body" style="padding-top:12px">
+        <div class="fg"><label class="fl">Status</label>
+          <span class="badge badge-${item.type}" style="font-size:12px">${typeFull[item.type]}</span>
+        </div>
+        ${item.teacher ? `
+          <div class="fg"><label class="fl">Assigned Teacher</label>
+            <div style="font-weight:700; font-size:15px">${item.teacher.name}</div>
+            <div style="font-size:12px; color:var(--tx2)">ID: ${item.teacher.id} • 📱 ${item.teacher.mobile}</div>
+          </div>
+          <a class="wa-group" href="${waLink(item.teacher.mobile, buildMsg(item))}" target="_blank" style="margin-top:10px">📲 Send WhatsApp Message</a>
+        ` : ''}
+        ${details}
+        ${item.type === 'H' ? `<div class="fg"><label class="fl">Note</label><div style="font-size:13px">${item.note||'School Holiday'}</div></div>` : ''}
+      </div>
+    </div>
+    <button class="btn btn-s" onclick="closeModal()">Close</button>
+  `);
+}
+
+window.onerror = function(msg, url, line) {
+  alert("App Error: " + msg + "\nLine: " + line);
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    render();
+  } catch (e) {
+    alert("Startup Error: " + e.message);
+    console.error(e);
+  }
+});
+</script>
+</body>
+</html>
